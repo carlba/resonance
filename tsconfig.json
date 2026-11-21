@@ -1,0 +1,12 @@
+{
+  "extends": "@tsconfig/node24/tsconfig.json",
+  "compilerOptions": {
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "nodenext",
+    "verbatimModuleSyntax": true, // Enforces .js for modules
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "exclude": ["node_modules"]
+}
