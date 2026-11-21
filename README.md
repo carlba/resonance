@@ -13,16 +13,18 @@ Search for albums and single tracks across providers, starting with
 - Shared libraries in [packages/core](packages/core) (`ApiError`) and
   [packages/nest-modules](packages/nest-modules) (the exception filter).
 
-- Track search through slskd: `GET /tracks?q=<term>` returns the audio files
-  found, with quality (format, bitrate, bit depth, sample rate, duration) and
+- Track search through slskd: `GET /tracks?q=<term>` returns every file
+  found, audio or not (cover art, cue sheets and logs are kept), with quality
+  (format, bitrate, bit depth, sample rate, duration) and
   the sharing user's availability (free upload slot, queue length, upload
   speed).
 
-- Album search through slskd: `GET /albums?q=<term>` groups the audio files
-  found into albums by user and folder (disc sub-folders such as `CD1` are
-  folded into their album), each with a guessed artist, album and year, the
-  track count, total size and duration, the dominant format and bitrate, the
-  sharing user's availability and its tracks.
+- Album search through slskd: `GET /albums?q=<term>` groups the files found
+  into albums by user and folder (disc sub-folders such as `CD1` are folded
+  into their album; folders without audio files are left out), each with a
+  guessed artist, album and year, the track count, total size and duration,
+  the dominant format and bitrate, the sharing user's availability and all of
+  its files. Non-audio files count towards the size only.
 
 - React frontend in [apps/frontend](apps/frontend): search albums or tracks,
   see quality and availability, filter by format and sort by quality, speed or

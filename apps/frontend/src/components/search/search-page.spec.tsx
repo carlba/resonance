@@ -96,12 +96,15 @@ describe('SearchPage', () => {
     expect(within(alert).getByText('Could not reach the backend')).toBeInTheDocument();
   });
 
-  it('shows album details and lists the tracks under the card', async () => {
+  it('shows album details and lists its files under the card', async () => {
     const album = buildAlbum({
       album: 'Discovery',
       artist: 'Daft Punk',
       username: 'bob',
-      tracks: [buildTrack({ filename: '01 - One More Time.flac' })],
+      tracks: [
+        buildTrack({ filename: '01 - One More Time.flac' }),
+        buildTrack({ filename: 'cover.jpg', extension: 'jpg', bitRate: undefined }),
+      ],
     });
     stubFetchWithJson([album]);
     renderAt('/?q=discovery');
@@ -112,8 +115,9 @@ describe('SearchPage', () => {
     expect(screen.getByText('FLAC')).toBeInTheDocument();
     expect(screen.getByText('Free slot')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Show tracks' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Show files' }));
     expect(screen.getByText('01 - One More Time.flac')).toBeInTheDocument();
+    expect(screen.getByText('cover.jpg')).toBeInTheDocument();
   });
 
   it('shows the bit depth and sample rate of a lossless album that reports no bitrate', async () => {

@@ -42,7 +42,7 @@ describe('isAudioFile', () => {
 });
 
 describe('toTrackResults', () => {
-  it('flattens every audio file into a track with its user and availability', () => {
+  it('flattens every file into a track with its user and availability', () => {
     const results: ProviderSearchResult[] = [
       {
         username: 'alice',
@@ -82,6 +82,14 @@ describe('toTrackResults', () => {
         availability: AVAILABILITY,
       },
       {
+        filename: 'cover.jpg',
+        path: '@@alice\\Music\\Artist\\Album\\cover.jpg',
+        username: 'alice',
+        extension: 'jpg',
+        size: 200_000,
+        availability: AVAILABILITY,
+      },
+      {
         filename: 'Artist - Intro.MP3',
         path: 'shared/Artist - Intro.MP3',
         username: 'bob',
@@ -93,7 +101,7 @@ describe('toTrackResults', () => {
     ]);
   });
 
-  it('returns no tracks when no result holds audio files', () => {
+  it('keeps files that are not audio', () => {
     const results: ProviderSearchResult[] = [
       {
         username: 'alice',
@@ -105,7 +113,7 @@ describe('toTrackResults', () => {
       },
     ];
 
-    expect(toTrackResults(results)).toEqual([]);
+    expect(toTrackResults(results).map(track => track.filename)).toEqual(['info.nfo', 'album.cue']);
   });
 
   it('returns no tracks for no results', () => {

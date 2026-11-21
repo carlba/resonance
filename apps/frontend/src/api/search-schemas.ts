@@ -35,16 +35,18 @@ export const albumResultSchema = z.object({
   artist: z.string().optional(),
   album: z.string(),
   year: z.number().optional(),
+  /** The number of audio files. */
   trackCount: z.number(),
-  /** Size of all tracks in bytes. */
+  /** Size of every file in bytes, audio or not. */
   totalSize: z.number(),
-  /** Only set when every track's duration is known. */
+  /** Only set when every audio file's duration is known. */
   totalDurationSeconds: z.number().optional(),
-  /** The most common track extension, e.g. `flac`. */
+  /** The most common audio extension, e.g. `flac`. */
   dominantExtension: z.string(),
   /** The most common known bitrate in kbps. */
   dominantBitRate: z.number().optional(),
   availability: userAvailabilitySchema,
+  /** Every file of the album, including cover art, cue sheets and logs. */
   tracks: z.array(trackResultSchema),
 });
 

@@ -43,7 +43,7 @@ describe('AppModule (e2e)', () => {
   });
 
   describe('GET /tracks', () => {
-    it('returns the audio tracks found by the provider', async () => {
+    it('returns every file found by the provider, audio or not', async () => {
       searchProvider.search.mockResolvedValue([
         {
           username: 'alice',
@@ -69,6 +69,14 @@ describe('AppModule (e2e)', () => {
           extension: 'flac',
           size: 30_000_000,
           bitDepth: 16,
+          availability: AVAILABILITY,
+        },
+        {
+          filename: 'cover.jpg',
+          path: 'Music\\Artist\\cover.jpg',
+          username: 'alice',
+          extension: 'jpg',
+          size: 200_000,
           availability: AVAILABILITY,
         },
       ]);
@@ -116,7 +124,7 @@ describe('AppModule (e2e)', () => {
   });
 
   describe('GET /albums', () => {
-    it('returns the audio tracks found by the provider grouped into albums', async () => {
+    it('returns the files found by the provider grouped into albums', async () => {
       searchProvider.search.mockResolvedValue([
         {
           username: 'alice',
@@ -151,7 +159,7 @@ describe('AppModule (e2e)', () => {
           album: 'Discovery',
           year: 2001,
           trackCount: 2,
-          totalSize: 500,
+          totalSize: 510,
           dominantExtension: 'flac',
           dominantBitRate: 1000,
           availability: AVAILABILITY,
@@ -162,6 +170,7 @@ describe('AppModule (e2e)', () => {
             expect.objectContaining({
               path: 'Music\\Daft Punk - Discovery (2001)\\CD2\\01 - Two.flac',
             }),
+            expect.objectContaining({ path: 'Music\\Daft Punk - Discovery (2001)\\cover.jpg' }),
           ],
         },
       ]);

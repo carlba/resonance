@@ -20,7 +20,7 @@ describe('TracksService', () => {
     expect(searchProvider.search).toHaveBeenCalledWith('Daft Punk');
   });
 
-  it('returns the audio files of every result as tracks', async () => {
+  it('returns every file of every result, audio or not', async () => {
     searchProvider.search.mockResolvedValue([
       {
         username: 'alice',
@@ -41,6 +41,7 @@ describe('TracksService', () => {
 
     expect(tracks).toEqual([
       expect.objectContaining({ filename: '01 - One.flac', username: 'alice', extension: 'flac' }),
+      expect.objectContaining({ filename: 'folder.jpg', username: 'alice', extension: 'jpg' }),
       expect.objectContaining({ filename: '02 - Two.mp3', username: 'bob', bitRate: 320 }),
     ]);
   });

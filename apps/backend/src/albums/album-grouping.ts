@@ -1,5 +1,5 @@
 import type { UserAvailability } from '../providers/search-provider.js';
-import type { TrackResult } from '../tracks/track-mapping.js';
+import { isAudioFile, type TrackResult } from '../tracks/track-mapping.js';
 import { guessAlbumTitle } from './album-title.js';
 
 // The last `\` or `/` of a share path, whichever separator the share uses.
@@ -12,7 +12,10 @@ const DISC_FOLDER = /^(?:cd|dis[ck])[\s._-]*\d+(?:\b.*)?$/i;
 // every machine.
 const PATH_COLLATOR = new Intl.Collator('en', { numeric: true });
 
-/** The audio files one user shares in one album directory. */
+/**
+ * The files one user shares in one album directory. The quality and length come from the audio
+ * files only, so cover art, cue sheets and logs are listed without skewing them.
+ */
 export interface AlbumResult {
   username: string;
   /** The album directory's full path on the user's share; disc sub-folders are folded into it. */
@@ -22,17 +25,23 @@ export interface AlbumResult {
   /** Guessed from the directory name; the name itself when no pattern fits. */
   album: string;
   year?: number;
+  /** The number of audio files. */
   trackCount: number;
-  /** Size of all tracks in bytes. */
+  /** Size of every file in bytes, audio or not, since all of them are downloaded with the album. */
   totalSize: number;
-  /** Only set when every track's duration is known, since a partial sum would understate it. */
+  /**
+   * Only set when every audio file's duration is known, since a partial sum would understate it.
+   */
   totalDurationSeconds?: number;
-  /** The most common track extension, e.g. `flac`. */
+  /** The most common audio extension, e.g. `flac`. */
   dominantExtension: string;
-  /** The most common known bitrate in kbps; unset when no track's bitrate is known. */
+  /** The most common known bitrate in kbps; unset when no audio file's bitrate is known. */
   dominantBitRate?: number;
   availability: UserAvailability;
-  /** Sorted by path, so tracks follow the order of their file names and disc folders. */
+  /**
+   * Every file of the album, audio or not, sorted by path so tracks follow the order of their file
+   * names and disc folders.
+   */
   tracks: TrackResult[];
 }
 
@@ -73,31 +82,32 @@ function sumDurations(tracks: readonly TrackResult[]): number | undefined {
     : undefined;
 }
 
-function toAlbumResult(directory: string, unsortedTracks: readonly TrackResult[]): AlbumResult {
-  const tracks = unsortedTracks.toSorted((first, second) =>
+function toAlbumResult(directory: string, unsortedFiles: readonly TrackResult[]): AlbumResult {
+  const files = unsortedFiles.toSorted((first, second) =>
     PATH_COLLATOR.compare(first.path, second.path)
   );
-  // Every track of a group comes from the same user, so they share one availability.
-  const [{ username, availability }] = tracks;
+  const audioFiles = files.filter(isAudioFile);
+  // Every file of a group comes from the same user, so they share one availability.
+  const [{ username, availability }] = files;
 
   return {
     username,
     directory,
     ...guessAlbumTitle(directory),
-    trackCount: tracks.length,
-    totalSize: tracks.reduce((total, track) => total + track.size, 0),
-    totalDurationSeconds: sumDurations(tracks),
-    dominantExtension: getMostCommon(tracks.map(track => track.extension)) ?? '',
-    dominantBitRate: getMostCommon(tracks.map(track => track.bitRate)),
+    trackCount: audioFiles.length,
+    totalSize: files.reduce((total, file) => total + file.size, 0),
+    totalDurationSeconds: sumDurations(audioFiles),
+    dominantExtension: getMostCommon(audioFiles.map(file => file.extension)) ?? '',
+    dominantBitRate: getMostCommon(audioFiles.map(file => file.bitRate)),
     availability,
-    tracks,
+    tracks: files,
   };
 }
 
 /**
- * Groups tracks into albums by user and album directory, folding disc sub-folders into their
- * parent so a multi-disc album is one result. Albums keep the order in which their first track
- * appears.
+ * Groups files into albums by user and album directory, folding disc sub-folders into their
+ * parent so a multi-disc album is one result. A directory without audio files, such as a `Scans`
+ * folder, is not an album and is left out. Albums keep the order in which their first file appears.
  */
 export function groupTracksIntoAlbums(tracks: readonly TrackResult[]): AlbumResult[] {
   // A JSON pair can't collide the way a plain concatenation of the two strings could. Map.groupBy
@@ -107,5 +117,7 @@ export function groupTracksIntoAlbums(tracks: readonly TrackResult[]): AlbumResu
   );
 
   // Every track of a group has the same album directory, so the first one stands for all.
-  return [...groups.values()].map(group => toAlbumResult(getAlbumDirectory(group[0].path), group));
+  return [...groups.values()]
+    .filter(group => group.some(isAudioFile))
+    .map(group => toAlbumResult(getAlbumDirectory(group[0].path), group));
 }
