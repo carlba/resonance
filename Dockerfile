@@ -7,15 +7,15 @@ RUN corepack enable
 # Set the working directory
 WORKDIR /usr/src/app
 
-# Copy the full workspace (apps/cli's `prepare` script builds @carlba/core's
-# dependencies during install, so source must be present before `pnpm install`)
+# Copy the full workspace so workspace packages can be built during install
 COPY . .
 
 # Install dependencies and compile TypeScript across the workspace
 RUN pnpm install --frozen-lockfile
 RUN pnpm run build
 
-VOLUME /mnt /config
+ENV NODE_ENV=production
+EXPOSE 3000
 
-# Run the CLI; args passed to `docker run` (e.g. `greet --name Carl`) are appended
-ENTRYPOINT ["node", "apps/cli/dist/cli.js"]
+# Run the NestJS backend
+ENTRYPOINT ["node", "apps/backend/dist/main.js"]

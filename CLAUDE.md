@@ -1,57 +1,45 @@
 # Project Guidelines
 
-> **Forking this template?** Do this once, then delete this callout:
->
-> 1. Rewrite Overview below — drop the "template repository" framing, describe this project
->    directly.
->
-> 2. Delete "Structure & dependency graph" (Part A) and replace it with this repo's actual packages.
->
-> 3. Rename all references to `typescript-template` to the project name.
->
-> 4. Update start script so they point to the new entrypoint of the project.
->
-> 5. Backend stack: keep the rule for the chosen stack in `.claude/rules/` (`backend-fastify.md` or
->    `backend-nest.md`) and delete the other — both match `apps/backend/**` and `apps/api/**`, so
->    keeping both loads conflicting rules. If the backend app lives elsewhere, add its folder to the
->    kept rule's `paths`. No backend at all: delete both and the "Backend / API apps" section.
-
 ## Overview
 
-This is a **template repository**: it gets forked/copied and specialized into different kinds of
-projects — CLI-only, backend-only, or fullstack (backend + frontend). It's a pnpm workspace monorepo
-using ESM modules, Vitest for testing, oxlint + Prettier for code quality, and tsx for development.
-`apps/*` holds executables/services and `packages/*` holds shared libraries, each with its own
-`package.json`, `tsconfig.json`, and `src/`.
+**Resonance** is a service for searching albums and single tracks across different providers,
+starting with [slskd](https://github.com/slskd/slskd). It consists of a NestJS backend that forwards
+searches to the providers and groups the results, and a React frontend for searching and browsing
+the results.
+
+It's a pnpm workspace monorepo using ESM modules, Vitest for testing, and oxlint + Prettier for code
+quality. `apps/*` holds executables/services and `packages/*` holds shared libraries, each with its
+own `package.json`, `tsconfig.json`, and `src/`.
 
 This file has two parts:
 
 - **Part A** describes the repo exactly as it stands today — always applicable.
 
-- **Part B** is conditional guidance for capabilities this template doesn't have yet (an HTTP
-  backend, a web frontend, outbound HTTP calls). Follow it once that capability is actually added —
+- **Part B** is conditional guidance for capabilities this project doesn't have yet (the HTTP
+  backend, the web frontend, outbound HTTP calls). Follow it once that capability is actually added —
   it is not a description of current code, and its absence today doesn't mean it's discouraged.
 
 # Part A — Current state
 
 ## Structure & dependency graph
 
-Four workspace packages exist today, wired together via pnpm's `workspace:*` protocol:
+Two workspace packages exist today, wired together via pnpm's `workspace:*` protocol:
 
-- `apps/cli` (`@carlba/cli`) — bin app (`cli` → `dist/cli.js`), built with Commander. Depends on
-  `core`, `config`, `logger`.
-
-- `packages/core` (`@carlba/core`) — shared library, e.g. `GreetingService`. Depends on `logger`.
+- `packages/core` (`@carlba/core`) — shared library holding `ApiError`. No internal deps (leaf).
   Only holds code that's actually shared by more than one app — code used by a single app belongs in
   that app's own `src/`, not here.
 
-- `packages/logger` (`@carlba/logger`) — pino wrapper. Exports `createLogger(...)` and the `Logger`
-  type. No internal deps (leaf).
+- `packages/nest-modules` (`@carlba/nest-modules`) — shared NestJS modules, currently
+  `ExceptionFilterModule` / `AllExceptionsFilter` (the global exception filter). Depends on `core`.
 
-- `packages/config` (`@carlba/config`) — zod-based env parsing. Exports `getConfig`, `initConfig`,
-  `parseConfig`. No internal deps (leaf).
+Dependency graph: `nest-modules → core`.
 
-Dependency graph: `cli → core, config, logger`; `core → logger`.
+Planned apps:
+
+- `apps/backend` (`@carlba/backend`) — NestJS backend with the search modules (tracks, albums) and
+  the slskd provider. See `.claude/rules/backend-nest.md`.
+
+- `apps/frontend` — React web UI for searching albums and tracks.
 
 ## Commands
 
@@ -59,7 +47,8 @@ Run from the repo root; they fan out across all workspace packages via pnpm:
 
 - `pnpm run build` — compile TypeScript in every package (`pnpm -r run build`)
 
-- `pnpm run start` / `pnpm run start:dev` — run the CLI / run it with hot reload
+- `pnpm run start` / `pnpm run start:dev` — run the backend (`@carlba/backend`) / run it in watch
+  mode
 
 - `pnpm test` — run tests once across every package (`pnpm -r run test`)
 
@@ -73,7 +62,7 @@ Run from the repo root; they fan out across all workspace packages via pnpm:
   `@types/node`
 
 Use `pnpm --filter <package-name> <script>` to target a single workspace package, e.g.
-`pnpm --filter @carlba/core test` or `pnpm --filter @carlba/cli build`.
+`pnpm --filter @carlba/core test` or `pnpm --filter @carlba/backend build`.
 
 ## Adding a new package
 
@@ -93,52 +82,14 @@ Use `pnpm --filter <package-name> <script>` to target a single workspace package
   `{ "extends": "../../tsconfig.json", "compilerOptions": { "rootDir": "./src", "outDir": "./dist" }, "include": ["src"] }`.
   Libraries also set `declaration: true, declarationMap: true`.
 
-- `vitest.config.ts`: copy the shape used by all four existing packages — `environment: 'node'`, v8
+- `vitest.config.ts`: copy the shape used by the existing packages — `environment: 'node'`, v8
   coverage with `text`/`json`/`html` reporters, `dir: 'src'`.
 
 ## Shared packages
 
-New apps should bootstrap config and logging through `@carlba/config` and `@carlba/logger` rather
-than reading `process.env` or instantiating `pino` directly. This is the real pattern from
-`apps/cli/src/cli.ts` and `apps/cli/src/schema.ts`:
-
-```ts
-// schema.ts
-export const envSchema = z
-  .object({
-    NODE_ENV: z
-      .string()
-      .trim()
-      .default('development')
-      .pipe(z.enum(['production', 'development', 'test'])),
-    LOG_LEVEL: z
-      .string()
-      .trim()
-      .default('debug')
-      .pipe(z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal'])),
-  })
-  .transform(raw => ({
-    NODE_ENV: raw.NODE_ENV,
-    isDevelopment: raw.NODE_ENV !== 'production',
-    logLevel: raw.LOG_LEVEL,
-  }));
-```
-
-```ts
-// cli.ts
-import { getConfig } from '@carlba/config';
-import { createLogger } from '@carlba/logger';
-import { envSchema } from './schema.js';
-
-const config = getConfig(envSchema); // throws on invalid env
-const logger = createLogger(undefined, config.NODE_ENV, { level: config.logLevel }).child({
-  name: 'typescript-template-cli',
-});
-```
-
-`getConfig` throws on invalid input — use it when startup should fail loudly. `initConfig` instead
-logs and calls `process.exit(1)` — use it when you want a clean CLI/process exit rather than an
-uncaught exception.
+Config and logging in the backend go through `@nestjs/config` (zod-validated env schema) and
+`nestjs-pino` — never ad hoc `process.env` reads or hand-built `pino` instances. See
+`.claude/rules/backend-nest.md` for the exact setup.
 
 Services and domain logic should throw `ApiError` (`@carlba/core`, `packages/core/src/errors.ts`)
 rather than plain `Error`s. Packages can inherit from `ApiError` and create more specific errors if
@@ -153,8 +104,8 @@ throw new ApiError(`User not found: id=${userId}`, { statusCode: 404, cause: ori
 - `statusCode` is loosely based on HTTP status codes since that's a well-known, well-understood
   scale — it doesn't imply the error is HTTP-specific.
 
-- `ApiError` should be caught by global error handling (a Fastify error handler, a CLI top-level
-  catch, etc.), not by the code that throws it.
+- `ApiError` should be caught by global error handling (the backend's global exception filter from
+  `@carlba/nest-modules`), not by the code that throws it.
 
 - The consumer/global handler decides how to present the error to the end user — services and domain
   logic just throw with an accurate `statusCode` and message; they shouldn't format a response
@@ -184,21 +135,19 @@ situational context that survives, so it must carry the specifics:
   }
   ```
 
-  Pino's default serializer includes `cause` when logging the error (see the Fastify error handler
-  below), so the log shows the full chain instead of just the outer `ApiError`.
+  Pino's default serializer includes `cause` when logging the error (see the global exception
+  filter in `.claude/rules/backend-nest.md`), so the log shows the full chain instead of just the
+  outer `ApiError`.
 
 - Never put user-facing formatting in the message (no trailing punctuation styling, no HTML) — the
   consumer decides how to present it; the message is for logs and developers.
 
 ## Loading `.env` files
 
-Use Node's native `--env-file-if-exists` flag (Node 20.6+; `tsx` passes it straight through to Node,
-since it's a runtime flag, not a `tsx`-specific one) on every script that runs the app's entry file:
-
-```json
-"start": "tsx --env-file-if-exists=../../.env dist/cli.js",
-"start:dev": "tsx --env-file-if-exists=../../.env src/cli.ts"
-```
+There is one `.env` at the repo root (see `.env.example`). The backend loads it through
+`@nestjs/config` (`envFilePath: '../../.env'`, since pnpm runs package scripts from
+`apps/backend`), so its scripts need no `--env-file` flag. A variable already set in the shell wins
+over the file.
 
 ## TypeScript & code style
 
@@ -279,33 +228,8 @@ Before considering a change done:
 
 # Part B — Conditional conventions
 
-These apply once the corresponding capability is added to the template. Follow them at that point;
+These apply once the corresponding capability is added to the project. Follow them at that point;
 their absence today isn't a signal to avoid them.
-
-## CLI apps
-
-Applies to any `apps/*` package that is a command-line tool — already true for `apps/cli`, and the
-template for future CLI apps.
-
-- Use [Commander](https://www.npmjs.com/package/commander).
-
-- The package's `bin` entry should match the project name and point to `dist/cli.js`.
-
-- The entry file (`cli.ts`) should construct and run the `Command` program; put each subcommand in
-  a domain appropriate folder (see `apps/cli/src/greet/greet-command.ts` as the template) and
-  register it from the entry file.
-
-- Include a `prepare` script that runs the package's build so `npm link`/`pnpm link` works locally.
-
-- Bootstrap config/logging via `@carlba/config` + `@carlba/logger`, as shown above.
-
-- Keep business logic out of command files (`src/<domain>/*-command.ts`) and in plain classes/functions
-  (e.g. `src/greeting`'s `GreetingService`) that take their dependencies as constructor/function
-  params — commands stay thin, parsing args and formatting output. Wire dependencies by hand in
-  `cli.ts` and pass them down explicitly; do not introduce InferDI or any DI container here. A CLI
-  invocation is a single-shot process with no per-request scope to manage, so a container adds
-  indirection without solving a problem — InferDI is a Part B backend/API convention for managing
-  per-request scope in a long-running server, which doesn't apply here.
 
 ## HTTP client usage
 
@@ -343,29 +267,21 @@ async function fetchUser(userId: string): Promise<User> {
 
 ## Backend / API apps
 
-_Applies when this template is specialized into a project with an HTTP backend — e.g. a future
-`apps/backend` package._
+_Applies to the HTTP backend in `apps/backend`._
 
-There are two supported stacks, each with its own path-scoped rule in `.claude/rules/`. The rule
-loads automatically when a matching file is read or edited; before scaffolding a new backend app,
-read the rule for the chosen stack first:
-
-- Fastify + InferDI: `.claude/rules/backend-fastify.md`
-
-- NestJS: `.claude/rules/backend-nest.md`
-
-The conventions below apply to both stacks.
+The backend uses NestJS. Its conventions live in the path-scoped rule
+`.claude/rules/backend-nest.md`, which loads automatically when a file under `apps/backend/**` is
+read or edited; read it before scaffolding or extending the backend.
 
 - Prefer TypeScript on Node.js for backend services.
 
-- Pick exactly one stack per backend app. Do not mix Fastify + InferDI with NestJS in one app, and
-  do not introduce other frameworks (e.g. plain Express) unless explicitly requested.
+- Use NestJS only. Do not introduce other frameworks (e.g. plain Express, Fastify + InferDI) unless
+  explicitly requested.
 
 - Services and domain logic throw `ApiError` (`@carlba/core`, see Shared packages above)
 
-- Config and logging bootstrap is stack-specific: Fastify apps use `@carlba/config` +
-  `@carlba/logger` as shown above; NestJS apps use `@nestjs/config` and `nestjs-pino` (see the
-  stack's rule file). Either way, no ad hoc `process.env` usage or hand-built `pino` instances.
+- Config and logging use `@nestjs/config` and `nestjs-pino` (see the rule file) — no ad hoc
+  `process.env` usage or hand-built `pino` instances.
 
 - Always configure database access via a single full connection URI (e.g. `DATABASE_URL`,
   `postgresql://user:password@host:5432/dbname`) rather than separate `DB_HOST`/`DB_PORT`/`DB_USER`/
@@ -398,7 +314,7 @@ The conventions below apply to both stacks.
 
 ## Frontend / Web UI apps
 
-_Applies when this template is specialized into a fullstack project with a web UI — e.g. a future
+_Applies to the web UI — the planned
 `apps/frontend` package._
 
 - Use React with TypeScript as the standard for all web UI work.

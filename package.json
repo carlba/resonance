@@ -1,26 +1,26 @@
 {
-  "name": "typescript-template",
-  "description": "A short project description",
+  "name": "resonance",
+  "description": "Search albums and tracks across providers, starting with slskd",
   "version": "0.0.1",
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
   "packageManager": "pnpm@11.5.1",
   "author": "carlba",
-  "homepage": "https://github.com/carlba/typescript-template",
+  "homepage": "https://github.com/carlba/resonance",
   "bugs": {
-    "url": "https://github.com/carlba/typescript-template"
+    "url": "https://github.com/carlba/resonance"
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:carlba/typescript-template"
+    "url": "git@github.com:carlba/resonance"
   },
   "scripts": {
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
     "test:coverage": "pnpm -r run --if-present test:coverage",
-    "start": "node --env-file-if-exists=.env apps/cli/dist/cli.js",
-    "start:dev": "tsx --env-file-if-exists=.env apps/cli/src/cli.ts",
+    "start": "pnpm --filter @carlba/backend start:prod",
+    "start:dev": "pnpm --filter @carlba/backend start:dev",
     "lint": "oxlint --type-aware",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
