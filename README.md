@@ -13,8 +13,12 @@ Search for albums and single tracks across providers, starting with
 - Shared libraries in [packages/core](packages/core) (`ApiError`) and
   [packages/nest-modules](packages/nest-modules) (the exception filter).
 
-- Album and track search through slskd is planned, together with a React
-  frontend.
+- Track search through slskd: `GET /tracks?q=<term>` returns the audio files
+  found, with quality (format, bitrate, bit depth, sample rate, duration) and
+  the sharing user's availability (free upload slot, queue length, upload
+  speed).
+
+- Album search and a React frontend are planned.
 
 ## Installation
 
@@ -22,9 +26,13 @@ Requires Node.js 24 and pnpm.
 
 ```bash
 pnpm install
-cp .env.example .env
+cp .env.example .env  # then set SLSKD_URL and SLSKD_API_KEY
 pnpm run build
 ```
+
+The backend needs a running [slskd](https://github.com/slskd/slskd) instance
+with an API key (`web.authentication.api_keys` in its config).
+`SEARCH_TIMEOUT_MS` caps how long a search request waits for slskd.
 
 ## Usage
 

@@ -8,33 +8,14 @@ GET {{baseUrl}}/
 ### Unknown route (404, via the global exception filter)
 GET {{baseUrl}}/does-not-exist
 
-### Echo a valid body (201)
-POST {{baseUrl}}/demo/echo
-Content-Type: application/json
+### Search tracks through slskd (200; 502 if slskd is unreachable, 504 on a timeout without results)
+GET {{baseUrl}}/tracks?q=daft punk around the world
 
-{
-  "message": "hi"
-}
+### Search tracks without a query (400)
+GET {{baseUrl}}/tracks
 
-### Echo with a wrong type (400)
-POST {{baseUrl}}/demo/echo
-Content-Type: application/json
+### Search tracks with an empty query (400)
+GET {{baseUrl}}/tracks?q="Thomas Rusiak - Magic Villa"
 
-{
-  "message": 42
-}
-
-### Echo with a missing field (400)
-POST {{baseUrl}}/demo/echo
-Content-Type: application/json
-
-{}
-
-### Echo with an unknown property (400)
-POST {{baseUrl}}/demo/echo
-Content-Type: application/json
-
-{
-  "message": "hi",
-  "role": "admin"
-}
+### Search tracks with an unknown query parameter (400)
+GET {{baseUrl}}/tracks?q=daft punk&page=2

@@ -27,8 +27,9 @@ This file has two parts:
 Three workspace packages exist today, wired together via pnpm's `workspace:*` protocol:
 
 - `apps/backend` (`@carlba/backend`) — NestJS backend. Today it has config (`@nestjs/config` + zod),
-  logging (`nestjs-pino`), the global exception filter, a global `ValidationPipe` and a demo
-  `POST /demo/echo` route; the search modules (tracks, albums) and the slskd provider come next.
+  logging (`nestjs-pino`), the global exception filter, a global `ValidationPipe`, the
+  `SearchProvider` abstraction with its slskd implementation (`src/providers/`) and track search
+  (`GET /tracks`, `src/tracks/`); album search comes next.
   Depends on `core` and `nest-modules`. See `.claude/rules/backend-nest.md`.
 
 - `packages/core` (`@carlba/core`) — shared library holding `ApiError`. No internal deps (leaf).
@@ -127,7 +128,7 @@ situational context that survives, so it must carry the specifics:
   `` `User not found: id=${userId}` `` rather than `'User not found'`. Prefer `key=value` pairs for
   the identifying data so messages stay greppable in logs.
 
-- When wrapping a lower-level error (a DB error, a failed `got` request, etc.), pass it as `cause`
+- When wrapping a lower-level error (a DB error, a failed HTTP request, etc.), pass it as `cause`
   rather than discarding it, so both stacks are preserved:
 
   ```ts
@@ -238,32 +239,48 @@ their absence today isn't a signal to avoid them.
 
 _Applies whenever any package needs to make outbound HTTP calls._
 
-- Use [`got`](https://github.com/sindresorhus/got) as the HTTP client.
+- In NestJS apps, use [`@nestjs/http-client`](https://www.npmjs.com/package/@nestjs/http-client).
+  Outside Nest (plain libraries in `packages/*`), use [`got`](https://github.com/sindresorhus/got).
 
-- Do not use `fetch`, `axios`, or `node-fetch`.
+- Do not use `fetch` directly, `axios`, `node-fetch`, or `@nestjs/axios`.
 
-- Prefer `got.extend()` for shared base URLs, headers, and retry logic.
+- Register one named client per upstream service with `HttpClientModule.registerAsync()`, taking
+  `baseUrl`, auth headers and `timeout` from `ConfigService`, and inject it with
+  `@InjectHttpClient(name)`. The client retries idempotent requests on its own; don't add a second
+  retry loop.
 
-- Type responses with `got<ResponseType>(url, options)`.
+- The client doesn't validate response bodies. Parse `response.data` with a zod schema at the
+  boundary instead of casting it.
 
-- Catch `HTTPError` and rethrow it with contextual information.
+- Catch `HttpClientError` (and its subclasses `HttpResponseError`, `HttpNetworkError`,
+  `HttpTimeoutError`, `HttpParseError`) and rethrow it as an `ApiError` with context and the
+  original error as `cause`. Don't use the package's `toHttpException()`; the global exception
+  filter handles `ApiError`.
+
+- In tests, pass a stub `fetch` to `HttpClientModule.forRoot({ fetch })` rather than mocking the
+  client, and build a new `Response` per call, since a body can only be read once.
 
 ```ts
-import got, { HTTPError } from 'got';
+import { ApiError } from '@carlba/core';
+import { HttpClient, HttpClientError, InjectHttpClient } from '@nestjs/http-client';
 
-const apiClient = got.extend({
-  prefixUrl: 'https://api.example.com',
-  responseType: 'json',
-});
+@Injectable()
+export class UserClient {
+  constructor(@InjectHttpClient('users') private readonly httpClient: HttpClient) {}
 
-async function fetchUser(userId: string): Promise<User> {
-  try {
-    return await apiClient.get<User>(`users/${userId}`).json();
-  } catch (error) {
-    if (error instanceof HTTPError) {
-      throw new Error(`Failed to fetch user ${userId}: ${error.response.statusCode}`);
+  async fetchUser(userId: string): Promise<User> {
+    try {
+      const { data } = await this.httpClient.get('users/:userId', { params: { userId } });
+      return userSchema.parse(data);
+    } catch (error) {
+      if (error instanceof HttpClientError) {
+        throw new ApiError(`Failed to fetch user: userId=${userId}`, {
+          statusCode: 502,
+          cause: error,
+        });
+      }
+      throw error;
     }
-    throw error;
   }
 }
 ```

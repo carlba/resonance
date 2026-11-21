@@ -6,8 +6,8 @@ import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { envSchema, type Env } from './config/env.schema.js';
-import { DemoModule } from './demo/demo.module.js';
 import { createLoggerParams } from './logging/logger-params.js';
+import { TracksModule } from './tracks/tracks.module.js';
 
 @Module({
   imports: [
@@ -27,7 +27,7 @@ import { createLoggerParams } from './logging/logger-params.js';
         }),
     }),
     ExceptionFilterModule,
-    DemoModule,
+    TracksModule,
   ],
   controllers: [AppController],
   providers: [
