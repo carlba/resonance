@@ -21,6 +21,7 @@
     "test:coverage": "pnpm -r run --if-present test:coverage",
     "start": "pnpm --filter @carlba/backend start:prod",
     "start:dev": "pnpm --filter @carlba/backend start:dev",
+    "start:frontend": "pnpm --filter @carlba/frontend dev",
     "lint": "oxlint --type-aware",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
