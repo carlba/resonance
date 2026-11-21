@@ -1,0 +1,40 @@
+# Requests for the backend. @baseUrl uses the default PORT (3000) from src/config/env.schema.ts;
+# change it here if the root .env sets another port.
+@baseUrl = http://localhost:3000
+
+### Greeting (200)
+GET {{baseUrl}}/
+
+### Unknown route (404, via the global exception filter)
+GET {{baseUrl}}/does-not-exist
+
+### Echo a valid body (201)
+POST {{baseUrl}}/demo/echo
+Content-Type: application/json
+
+{
+  "message": "hi"
+}
+
+### Echo with a wrong type (400)
+POST {{baseUrl}}/demo/echo
+Content-Type: application/json
+
+{
+  "message": 42
+}
+
+### Echo with a missing field (400)
+POST {{baseUrl}}/demo/echo
+Content-Type: application/json
+
+{}
+
+### Echo with an unknown property (400)
+POST {{baseUrl}}/demo/echo
+Content-Type: application/json
+
+{
+  "message": "hi",
+  "role": "admin"
+}
