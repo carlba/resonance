@@ -20,7 +20,7 @@ describe('AlbumsService', () => {
     expect(searchProvider.search).toHaveBeenCalledWith('Daft Punk Discovery');
   });
 
-  it('groups the audio files of every result into albums', async () => {
+  it('groups the files of every result into albums, counting only audio as tracks', async () => {
     searchProvider.search.mockResolvedValue([
       {
         username: 'alice',
@@ -49,11 +49,12 @@ describe('AlbumsService', () => {
         album: 'Discovery',
         year: 2001,
         trackCount: 2,
-        totalSize: 500,
+        totalSize: 510,
         dominantExtension: 'flac',
         tracks: [
           expect.objectContaining({ filename: '01 - One More Time.flac' }),
           expect.objectContaining({ filename: '02 - Aerodynamic.flac' }),
+          expect.objectContaining({ filename: 'folder.jpg' }),
         ],
       }),
       expect.objectContaining({

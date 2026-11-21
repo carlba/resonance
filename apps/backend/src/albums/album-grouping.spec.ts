@@ -213,6 +213,44 @@ describe('groupTracksIntoAlbums', () => {
     expect(album.dominantBitRate).toBeUndefined();
   });
 
+  it('lists files that are not audio but takes the quality and length from the audio files', () => {
+    const cover = createTrack({ path: 'A/cover.jpg', extension: 'jpg', size: 3 });
+    const cueSheet = createTrack({ path: 'A/album.cue', extension: 'cue', size: 1 });
+    const logFile = createTrack({ path: 'A/album.log', extension: 'log', size: 1 });
+    const [album] = groupTracksIntoAlbums([
+      cover,
+      cueSheet,
+      logFile,
+      createTrack({ path: 'A/01.flac', size: 30, bitRate: 900, durationSeconds: 200 }),
+    ]);
+
+    expect(album).toMatchObject({
+      trackCount: 1,
+      totalSize: 35,
+      totalDurationSeconds: 200,
+      dominantExtension: 'flac',
+      dominantBitRate: 900,
+    });
+    expect(album.tracks.map(track => track.path)).toEqual([
+      'A/01.flac',
+      'A/album.cue',
+      'A/album.log',
+      'A/cover.jpg',
+    ]);
+  });
+
+  it('leaves out directories that hold no audio files', () => {
+    const albums = groupTracksIntoAlbums([
+      createTrack({ path: 'A/01.flac' }),
+      createTrack({ path: 'A/Scans/front.jpg', extension: 'jpg' }),
+      createTrack({ path: 'B/info.nfo', extension: 'nfo' }),
+    ]);
+
+    expect(summarize(albums)).toEqual([
+      { username: 'alice', directory: 'A', paths: ['A/01.flac'] },
+    ]);
+  });
+
   it('returns no albums for no tracks', () => {
     expect(groupTracksIntoAlbums([])).toEqual([]);
   });

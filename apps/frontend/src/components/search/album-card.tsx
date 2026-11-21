@@ -86,7 +86,7 @@ export function AlbumCard({ album }: AlbumCardProps) {
         <Collapsible>
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="sm" className="group w-full justify-between">
-              Show tracks
+              Show files
               <ChevronDown
                 aria-hidden
                 className="transition-transform group-data-[state=open]:rotate-180"

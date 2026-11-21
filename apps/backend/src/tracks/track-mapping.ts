@@ -20,7 +20,10 @@ export const AUDIO_EXTENSIONS: ReadonlySet<string> = new Set([
 // Soulseek paths come from Windows and Unix shares alike, so both separators occur.
 const PATH_SEPARATOR = /[\\/]/;
 
-/** One audio file from a search, with the availability of the user sharing it. */
+/**
+ * One file from a search, with the availability of the user sharing it. Usually an audio track, but
+ * cover art, cue sheets, logs and other files are kept too, so the user sees everything a share has.
+ */
 export interface TrackResult {
   /** The file name without its directory. */
   filename: string;
@@ -74,9 +77,7 @@ export function toTrackResult(file: ProviderFile, result: ProviderSearchResult):
   };
 }
 
-/** Flattens provider results into one track per audio file, dropping every other kind of file. */
+/** Flattens provider results into one track per file, whatever its kind. */
 export function toTrackResults(results: readonly ProviderSearchResult[]): TrackResult[] {
-  return results.flatMap(result =>
-    result.files.filter(isAudioFile).map(file => toTrackResult(file, result))
-  );
+  return results.flatMap(result => result.files.map(file => toTrackResult(file, result)));
 }
