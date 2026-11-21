@@ -3,6 +3,7 @@ import { Module, ValidationPipe } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_PIPE } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
+import { AlbumsModule } from './albums/albums.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { envSchema, type Env } from './config/env.schema.js';
@@ -28,6 +29,7 @@ import { TracksModule } from './tracks/tracks.module.js';
     }),
     ExceptionFilterModule,
     TracksModule,
+    AlbumsModule,
   ],
   controllers: [AppController],
   providers: [

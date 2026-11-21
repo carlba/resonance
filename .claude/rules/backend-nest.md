@@ -330,7 +330,7 @@ Request bodies are DTO classes decorated with `class-validator` rules, checked b
   export class SearchTracksQueryDto {
     @Transform(trimString)
     @IsString()
-    @Length(1, MAX_QUERY_LENGTH)
+    @Length(1, MAX_SEARCH_QUERY_LENGTH)
     q: string;
   }
   ```

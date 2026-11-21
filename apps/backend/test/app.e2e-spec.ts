@@ -114,4 +114,95 @@ describe('AppModule (e2e)', () => {
       expect(response.body).toEqual({ statusCode, message: 'Internal server error' });
     });
   });
+
+  describe('GET /albums', () => {
+    it('returns the audio tracks found by the provider grouped into albums', async () => {
+      searchProvider.search.mockResolvedValue([
+        {
+          username: 'alice',
+          availability: AVAILABILITY,
+          files: [
+            {
+              path: 'Music\\Daft Punk - Discovery (2001)\\CD1\\01 - One.flac',
+              size: 300,
+              bitRate: 1000,
+            },
+            {
+              path: 'Music\\Daft Punk - Discovery (2001)\\CD2\\01 - Two.flac',
+              size: 200,
+              bitRate: 1000,
+            },
+            { path: 'Music\\Daft Punk - Discovery (2001)\\cover.jpg', size: 10 },
+          ],
+        },
+      ]);
+
+      const response = await request(app.getHttpServer())
+        .get('/albums')
+        .query({ q: '  Daft Punk Discovery  ' })
+        .expect(200);
+
+      expect(searchProvider.search).toHaveBeenCalledWith('Daft Punk Discovery');
+      expect(response.body).toEqual([
+        {
+          username: 'alice',
+          directory: 'Music\\Daft Punk - Discovery (2001)',
+          artist: 'Daft Punk',
+          album: 'Discovery',
+          year: 2001,
+          trackCount: 2,
+          totalSize: 500,
+          dominantExtension: 'flac',
+          dominantBitRate: 1000,
+          availability: AVAILABILITY,
+          tracks: [
+            expect.objectContaining({
+              path: 'Music\\Daft Punk - Discovery (2001)\\CD1\\01 - One.flac',
+            }),
+            expect.objectContaining({
+              path: 'Music\\Daft Punk - Discovery (2001)\\CD2\\01 - Two.flac',
+            }),
+          ],
+        },
+      ]);
+    });
+
+    it.each([
+      ['missing', {}],
+      ['empty', { q: '' }],
+      ['only whitespace', { q: '   ' }],
+      ['too long', { q: 'a'.repeat(201) }],
+    ])('rejects a %s q with 400', async (_case, query) => {
+      const response = await request(app.getHttpServer()).get('/albums').query(query).expect(400);
+
+      expect(response.body.message).toEqual(
+        expect.arrayContaining([expect.stringMatching(/^q must/)])
+      );
+      expect(searchProvider.search).not.toHaveBeenCalled();
+    });
+
+    it('rejects an unknown query parameter with 400', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/albums')
+        .query({ q: 'Daft Punk', page: '2' })
+        .expect(400);
+
+      expect(response.body.message).toEqual(
+        expect.arrayContaining(['property page should not exist'])
+      );
+    });
+
+    it('answers with the status of a provider ApiError', async () => {
+      searchProvider.search.mockRejectedValue(
+        new ApiError('slskd is unreachable: searchText="Daft Punk"', { statusCode: 502 })
+      );
+
+      const response = await request(app.getHttpServer())
+        .get('/albums')
+        .query({ q: 'Daft Punk' })
+        .expect(502);
+
+      expect(response.body).toEqual({ statusCode: 502, message: 'Internal server error' });
+    });
+  });
 });

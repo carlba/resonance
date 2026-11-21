@@ -18,7 +18,13 @@ Search for albums and single tracks across providers, starting with
   the sharing user's availability (free upload slot, queue length, upload
   speed).
 
-- Album search and a React frontend are planned.
+- Album search through slskd: `GET /albums?q=<term>` groups the audio files
+  found into albums by user and folder (disc sub-folders such as `CD1` are
+  folded into their album), each with a guessed artist, album and year, the
+  track count, total size and duration, the dominant format and bitrate, the
+  sharing user's availability and its tracks.
+
+- A React frontend is planned.
 
 ## Installation
 
