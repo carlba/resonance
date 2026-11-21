@@ -28,8 +28,9 @@ Three workspace packages exist today, wired together via pnpm's `workspace:*` pr
 
 - `apps/backend` (`@carlba/backend`) — NestJS backend. Today it has config (`@nestjs/config` + zod),
   logging (`nestjs-pino`), the global exception filter, a global `ValidationPipe`, the
-  `SearchProvider` abstraction with its slskd implementation (`src/providers/`) and track search
-  (`GET /tracks`, `src/tracks/`); album search comes next.
+  `SearchProvider` abstraction with its slskd implementation (`src/providers/`), track search
+  (`GET /tracks`, `src/tracks/`) and album search (`GET /albums`, `src/albums/`), which groups the
+  tracks of the same search by user and folder.
   Depends on `core` and `nest-modules`. See `.claude/rules/backend-nest.md`.
 
 - `packages/core` (`@carlba/core`) — shared library holding `ApiError`. No internal deps (leaf).

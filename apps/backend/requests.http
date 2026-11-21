@@ -19,3 +19,12 @@ GET {{baseUrl}}/tracks?q="Thomas Rusiak - Magic Villa"
 
 ### Search tracks with an unknown query parameter (400)
 GET {{baseUrl}}/tracks?q=daft punk&page=2
+
+### Search albums through slskd (200; 502 if slskd is unreachable, 504 on a timeout without results)
+GET {{baseUrl}}/albums?q=daft punk discovery
+
+### Search albums without a query (400)
+GET {{baseUrl}}/albums
+
+### Search albums with an empty query (400)
+GET {{baseUrl}}/albums?q=
