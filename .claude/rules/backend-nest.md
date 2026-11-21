@@ -130,8 +130,9 @@ The app uses Nest's own config module rather than `@carlba/config`, so `@carlba/
 
 - **Dependencies:** `@nestjs/config` and `zod` are in `apps/backend/package.json`.
 
-- **Schema:** `src/config/env.schema.ts` exports a zod `envSchema` (`NODE_ENV`, `PORT`, `LOG_LEVEL`) and the
-  inferred `Env` type. `PORT` uses `z.coerce.number()` because environment variables are strings.
+- **Schema:** `src/config/env.schema.ts` exports a zod `envSchema` (`NODE_ENV`, `PORT`, `LOG_LEVEL`, and
+  `SLSKD_URL`, `SLSKD_API_KEY`, `SEARCH_TIMEOUT_MS` for the slskd provider) and the inferred `Env`
+  type. `PORT` uses `z.coerce.number()` because environment variables are strings.
 
 - **Module:** `AppModule` registers
   `ConfigModule.forRoot({ isGlobal: true, envFilePath: '../../.env', validationSchema: envSchema })`.
@@ -321,15 +322,16 @@ Request bodies are DTO classes decorated with `class-validator` rules, checked b
 - **Dependencies:** `class-validator` and `class-transformer` in `apps/backend/package.json`
   (`ValidationPipe` loads both). Named imports work from native ESM.
 
-- **DTO:** `src/demo/echo.dto.ts`. Use a class, not an interface, since the pipe needs the runtime
-  type through `emitDecoratorMetadata`. Import it as a value in the controller, not with
-  `import type`.
+- **DTO:** e.g. `src/tracks/search-tracks-query.dto.ts` for `GET /tracks?q=`. Use a class, not an
+  interface, since the pipe needs the runtime type through `emitDecoratorMetadata`. Import it as a
+  value in the controller, not with `import type`.
 
   ```ts
-  export class EchoDto {
+  export class SearchTracksQueryDto {
+    @Transform(trimString)
     @IsString()
-    @Length(1, 200)
-    message: string;
+    @Length(1, MAX_QUERY_LENGTH)
+    q: string;
   }
   ```
 
@@ -349,33 +351,21 @@ Request bodies are DTO classes decorated with `class-validator` rules, checked b
   `@ValidateNested()` together with `@Type(() => Nested)` from `class-transformer`; without `@Type()`
   the nested rules are skipped.
 
-- **Demo route:** `POST /demo/echo` returns the validated body. Remove it with `EchoDto` once real
-  endpoints exist.
-
-  ```bash
-  curl -i -X POST localhost:3000/demo/echo -H 'content-type: application/json' -d '{"message":"hi"}'
-  # 201 {"message":"hi"}
-  curl -i -X POST localhost:3000/demo/echo -H 'content-type: application/json' -d '{"message":42}'
-  # 400 {"message":["message must be a string","message must be longer than or equal to 1 and shorter than or equal to 200 characters"],"error":"Bad Request","statusCode":400}
-  curl -i -X POST localhost:3000/demo/echo -H 'content-type: application/json' -d '{"message":"hi","role":"admin"}'
-  # 400 {"message":["property role should not exist"],"error":"Bad Request","statusCode":400}
-  ```
-
-- **Tests:** the e2e tests in `test/app.e2e-spec.ts` cover a valid body, a wrong type, a missing
-  field and an unknown property. The 400 body for an invalid request is the one Nest builds, so
+- **Tests:** the e2e tests in `test/app.e2e-spec.ts` cover valid input, missing and invalid values
+  and an unknown property for every endpoint. The 400 body for an invalid request is the one Nest builds, so
   assert on the status and on `arrayContaining` for the messages rather than the whole array.
 
 ### 8. httpYac requests
 
 The root `CLAUDE.md` asks every backend for an [httpYac](https://httpyac.github.io) `.http` file.
-`apps/backend/requests.http` has one request per endpoint, including the failing demo routes, so the
-exception filter and the validation pipe can be tried from the editor.
+`apps/backend/requests.http` has one request per endpoint, including failing ones, so the exception
+filter and the validation pipe can be tried from the editor.
 
 - **Layout:** one request per `###` block, with the expected status in the title. `@baseUrl` is
   defined once at the top; it is the default `PORT` (3000) from `src/config/env.schema.ts`, so change
   it there if `.env` sets another port.
 
-- **Maintenance:** add a request here with every new endpoint, and delete the demo requests together
-  with the demo routes. There are no secrets in the file yet; once an endpoint needs a token, read it
+- **Maintenance:** add a request here with every new endpoint, and delete its requests together with
+  the endpoint. There are no secrets in the file yet; once an endpoint needs a token, read it
   with `{{$dotenv APP_TOKEN}}` as in the root `CLAUDE.md` rather than writing it into the file.
 
