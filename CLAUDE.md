@@ -16,15 +16,15 @@ This file has two parts:
 - **Part A** describes the repo exactly as it stands today — always applicable.
 
 - **Part B** is conditional guidance for capabilities this project doesn't have yet or only has in
-  part (the web frontend, outbound HTTP calls), plus the backend conventions for `apps/backend`.
-  Follow it once that capability is actually added — it is not a description of current code, and
-  its absence today doesn't mean it's discouraged.
+  part (outbound HTTP calls), plus the conventions for `apps/backend` and `apps/frontend`. Follow it
+  once that capability is actually added — it is not a description of current code, and its absence
+  today doesn't mean it's discouraged.
 
 # Part A — Current state
 
 ## Structure & dependency graph
 
-Three workspace packages exist today, wired together via pnpm's `workspace:*` protocol:
+Four workspace packages exist today, wired together via pnpm's `workspace:*` protocol:
 
 - `apps/backend` (`@carlba/backend`) — NestJS backend. Today it has config (`@nestjs/config` + zod),
   logging (`nestjs-pino`), the global exception filter, a global `ValidationPipe`, the
@@ -40,11 +40,15 @@ Three workspace packages exist today, wired together via pnpm's `workspace:*` pr
 - `packages/nest-modules` (`@carlba/nest-modules`) — shared NestJS modules, currently
   `ExceptionFilterModule` / `AllExceptionsFilter` (the global exception filter). Depends on `core`.
 
-Dependency graph: `backend → nest-modules → core`, `backend → core`.
+- `apps/frontend` (`@carlba/frontend`) — React web UI built with Vite, Tailwind CSS and shadcn/ui
+  (`src/components/ui/`). It searches albums or tracks through the backend (`src/api/`, via `ky`),
+  keeps the search, format filter and sort order in the URL (`src/search/`), and shows the results
+  with loading, empty and error states (`src/components/search/`). In development, Vite proxies
+  `/api/*` to the backend at `http://localhost:3000`. No internal deps — it mirrors the backend's
+  response types with zod schemas instead of importing them.
 
-Planned apps:
-
-- `apps/frontend` — React web UI for searching albums and tracks.
+Dependency graph: `backend → nest-modules → core`, `backend → core`. `frontend` has no internal
+deps.
 
 ## Commands
 
@@ -54,6 +58,8 @@ Run from the repo root; they fan out across all workspace packages via pnpm:
 
 - `pnpm run start` / `pnpm run start:dev` — run the backend (`@carlba/backend`) / run it in watch
   mode
+
+- `pnpm run start:frontend` — run the frontend's Vite dev server (`@carlba/frontend`)
 
 - `pnpm test` — run tests once across every package (`pnpm -r run test`)
 
@@ -242,6 +248,10 @@ _Applies whenever any package needs to make outbound HTTP calls._
 
 - In NestJS apps, use [`@nestjs/http-client`](https://www.npmjs.com/package/@nestjs/http-client).
   Outside Nest (plain libraries in `packages/*`), use [`got`](https://github.com/sindresorhus/got).
+  `got` only runs in Node, so browser code (`apps/frontend`) uses [`ky`](https://github.com/sindresorhus/ky)
+  instead: one `ky.create()` instance per upstream, responses parsed with a zod schema via
+  `.json(schema)`, and `HTTPError` / `NetworkError` / `TimeoutError` / `SchemaValidationError`
+  turned into a typed error the UI can show (see `apps/frontend/src/api/`).
 
 - Do not use `fetch` directly, `axios`, `node-fetch`, or `@nestjs/axios`.
 
@@ -335,8 +345,7 @@ read or edited; read it before scaffolding or extending the backend.
 
 ## Frontend / Web UI apps
 
-_Applies to the web UI — the planned
-`apps/frontend` package._
+_Applies to the web UI — the `apps/frontend` package._
 
 - Use React with TypeScript as the standard for all web UI work.
 

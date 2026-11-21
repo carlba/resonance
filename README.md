@@ -24,7 +24,10 @@ Search for albums and single tracks across providers, starting with
   track count, total size and duration, the dominant format and bitrate, the
   sharing user's availability and its tracks.
 
-- A React frontend is planned.
+- React frontend in [apps/frontend](apps/frontend): search albums or tracks,
+  see quality and availability, filter by format and sort by quality, speed or
+  size. The search, filter and sort live in the URL, so a search can be shared
+  and reloaded. Works on mobile, tablet and desktop.
 
 ## Installation
 
@@ -47,6 +50,13 @@ with an API key (`web.authentication.api_keys` in its config).
   ```bash
   pnpm run start      # built app
   pnpm run start:dev  # watch mode
+  ```
+
+- Start the frontend next to the backend, then open <http://localhost:5173>.
+  Its dev server forwards `/api/*` to the backend on port 3000:
+
+  ```bash
+  pnpm run start:frontend
   ```
 
 - Try the endpoints with [apps/backend/requests.http](apps/backend/requests.http)

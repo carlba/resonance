@@ -1,0 +1,13 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "extends": ["../../.oxlintrc.json"],
+  "plugins": ["typescript", "unicorn", "oxc", "react", "jsx-a11y"],
+  "ignorePatterns": ["src/components/ui/**"],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    // The automatic JSX runtime (React 17+) needs no React import.
+    "react/react-in-jsx-scope": "off",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+  }
+}
