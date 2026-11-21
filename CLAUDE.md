@@ -15,15 +15,21 @@ This file has two parts:
 
 - **Part A** describes the repo exactly as it stands today — always applicable.
 
-- **Part B** is conditional guidance for capabilities this project doesn't have yet (the HTTP
-  backend, the web frontend, outbound HTTP calls). Follow it once that capability is actually added —
-  it is not a description of current code, and its absence today doesn't mean it's discouraged.
+- **Part B** is conditional guidance for capabilities this project doesn't have yet or only has in
+  part (the web frontend, outbound HTTP calls), plus the backend conventions for `apps/backend`.
+  Follow it once that capability is actually added — it is not a description of current code, and
+  its absence today doesn't mean it's discouraged.
 
 # Part A — Current state
 
 ## Structure & dependency graph
 
-Two workspace packages exist today, wired together via pnpm's `workspace:*` protocol:
+Three workspace packages exist today, wired together via pnpm's `workspace:*` protocol:
+
+- `apps/backend` (`@carlba/backend`) — NestJS backend. Today it has config (`@nestjs/config` + zod),
+  logging (`nestjs-pino`), the global exception filter, a global `ValidationPipe` and a demo
+  `POST /demo/echo` route; the search modules (tracks, albums) and the slskd provider come next.
+  Depends on `core` and `nest-modules`. See `.claude/rules/backend-nest.md`.
 
 - `packages/core` (`@carlba/core`) — shared library holding `ApiError`. No internal deps (leaf).
   Only holds code that's actually shared by more than one app — code used by a single app belongs in
@@ -32,12 +38,9 @@ Two workspace packages exist today, wired together via pnpm's `workspace:*` prot
 - `packages/nest-modules` (`@carlba/nest-modules`) — shared NestJS modules, currently
   `ExceptionFilterModule` / `AllExceptionsFilter` (the global exception filter). Depends on `core`.
 
-Dependency graph: `nest-modules → core`.
+Dependency graph: `backend → nest-modules → core`, `backend → core`.
 
 Planned apps:
-
-- `apps/backend` (`@carlba/backend`) — NestJS backend with the search modules (tracks, albums) and
-  the slskd provider. See `.claude/rules/backend-nest.md`.
 
 - `apps/frontend` — React web UI for searching albums and tracks.
 
