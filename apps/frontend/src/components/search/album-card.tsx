@@ -1,5 +1,6 @@
 import { ChevronDown } from 'lucide-react';
 import type { AlbumResult, TrackResult } from '@/api/search-schemas.ts';
+import { Badge } from '@/components/ui/badge.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import {
   Card,
@@ -15,7 +16,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible.tsx';
 import { formatAudioQuality, formatBytes, formatDuration } from '@/lib/format.ts';
-import { getResultFacts } from '@/search/result-filters.ts';
+import { countCueSheets, countRipLogs, getResultFacts } from '@/search/result-filters.ts';
 import { Availability } from './availability.tsx';
 import { FormatBadge } from './format-badge.tsx';
 
@@ -42,6 +43,26 @@ function AlbumTrackList({ tracks }: { tracks: readonly TrackResult[] }) {
   );
 }
 
+interface RipFileBadgeProps {
+  label: string;
+  /** What the files are, for the tooltip, e.g. `rip log`. */
+  description: string;
+  count: number;
+}
+
+/** Shows that an album has files of a kind, with their count when there's more than one. */
+function RipFileBadge({ label, description, count }: RipFileBadgeProps) {
+  if (count === 0) {
+    return null;
+  }
+  const title = count === 1 ? `1 ${description}` : `${count} ${description}s`;
+  return (
+    <Badge variant="outline" title={title}>
+      {count === 1 ? label : `${label} ×${count}`}
+    </Badge>
+  );
+}
+
 /** One album with its quality and availability, and its tracks folded away underneath. */
 export function AlbumCard({ album }: AlbumCardProps) {
   const title = album.year === undefined ? album.album : `${album.album} (${album.year})`;
@@ -53,6 +74,8 @@ export function AlbumCard({ album }: AlbumCardProps) {
         <CardTitle className="flex flex-wrap items-center gap-2">
           <span className="break-words">{title}</span>
           <FormatBadge extension={album.dominantExtension} />
+          <RipFileBadge label="log" description="rip log" count={countRipLogs(album)} />
+          <RipFileBadge label="cue" description="cue sheet" count={countCueSheets(album)} />
         </CardTitle>
         <CardDescription>{album.artist ?? 'Unknown artist'}</CardDescription>
       </CardHeader>

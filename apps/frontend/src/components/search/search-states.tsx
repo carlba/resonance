@@ -1,4 +1,4 @@
-import { CircleAlert, RotateCw, SearchX } from 'lucide-react';
+import { CircleAlert, FilterX, RotateCw, SearchX } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { Skeleton } from '@/components/ui/skeleton.tsx';
@@ -29,6 +29,33 @@ export function EmptyState({ mode, searchText }: EmptyStateProps) {
       <p>
         No {mode} found for “{searchText}”
       </p>
+    </output>
+  );
+}
+
+export interface AllHiddenStateProps {
+  mode: SearchMode;
+  /** How many results the search found before filtering. */
+  resultCount: number;
+  onClearFilters: () => void;
+}
+
+const SINGULAR_RESULT_NOUNS: Record<SearchMode, string> = { albums: 'album', tracks: 'track' };
+
+/** Results were found, but none of them pass the filters. */
+export function AllHiddenState({ mode, resultCount, onClearFilters }: AllHiddenStateProps) {
+  const message =
+    resultCount === 1
+      ? `The only ${SINGULAR_RESULT_NOUNS[mode]} is hidden by your filters`
+      : `All ${resultCount} ${mode} are hidden by your filters`;
+
+  return (
+    <output className="flex flex-col items-center gap-3 py-12 text-center text-muted-foreground">
+      <FilterX aria-hidden className="size-8" />
+      <p>{message}</p>
+      <Button variant="outline" size="sm" onClick={onClearFilters}>
+        Clear filters
+      </Button>
     </output>
   );
 }
