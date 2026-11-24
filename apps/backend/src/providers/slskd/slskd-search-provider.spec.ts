@@ -11,7 +11,7 @@ import {
   type ProviderSearchResult,
   type SearchProvider,
 } from '../search-provider.js';
-import { UnexpectedResponseError } from './slskd-search-provider.js';
+import { UnexpectedResponseError } from './slskd-request.js';
 
 const SEARCH_TIMEOUT_MS = 2000;
 const SEARCH_ID = '3f1c2b4e-0000-4000-8000-000000000001';

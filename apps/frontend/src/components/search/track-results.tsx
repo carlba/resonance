@@ -1,3 +1,4 @@
+import type { DownloadRequest } from '@/api/download-schemas.ts';
 import type { TrackResult } from '@/api/search-schemas.ts';
 import { Card, CardContent } from '@/components/ui/card.tsx';
 import {
@@ -9,6 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table.tsx';
 import { formatAudioQuality, formatBytes, formatDuration } from '@/lib/format.ts';
+import { DownloadButton, ResultDownloadBadge } from '@/components/downloads/download-button.tsx';
 import { Availability } from './availability.tsx';
 import { FormatBadge } from './format-badge.tsx';
 
@@ -19,6 +21,10 @@ export interface TrackResultsProps {
 // A user shares a path once, so the pair identifies the track.
 function getTrackKey(track: TrackResult): string {
   return `${track.username}\n${track.path}`;
+}
+
+function getDownloadRequest(track: TrackResult): DownloadRequest {
+  return { username: track.username, files: [{ path: track.path, size: track.size }] };
 }
 
 function getFolder(track: TrackResult): string {
@@ -37,6 +43,7 @@ function TrackTable({ tracks }: TrackResultsProps) {
           <TableHead className="text-right">Duration</TableHead>
           <TableHead className="text-right">Size</TableHead>
           <TableHead>Availability</TableHead>
+          <TableHead>Download</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -57,6 +64,12 @@ function TrackTable({ tracks }: TrackResultsProps) {
             <TableCell className="text-right">{formatBytes(track.size)}</TableCell>
             <TableCell>
               <Availability availability={track.availability} className="flex-nowrap" />
+            </TableCell>
+            <TableCell>
+              <div className="flex items-center gap-2">
+                <DownloadButton request={getDownloadRequest(track)} />
+                <ResultDownloadBadge request={getDownloadRequest(track)} />
+              </div>
             </TableCell>
           </TableRow>
         ))}
@@ -83,6 +96,13 @@ function TrackCards({ tracks }: TrackResultsProps) {
                 {formatBytes(track.size)}
               </span>
               <Availability availability={track.availability} />
+              <div className="flex items-center gap-2 pt-1">
+                <DownloadButton
+                  request={getDownloadRequest(track)}
+                  className="flex-1 sm:flex-none"
+                />
+                <ResultDownloadBadge request={getDownloadRequest(track)} />
+              </div>
             </CardContent>
           </Card>
         </li>

@@ -1,4 +1,5 @@
 import { ChevronDown } from 'lucide-react';
+import type { DownloadRequest } from '@/api/download-schemas.ts';
 import type { AlbumResult, TrackResult } from '@/api/search-schemas.ts';
 import { Badge } from '@/components/ui/badge.tsx';
 import { Button } from '@/components/ui/button.tsx';
@@ -17,8 +18,17 @@ import {
 } from '@/components/ui/collapsible.tsx';
 import { formatAudioQuality, formatBytes, formatDuration } from '@/lib/format.ts';
 import { countCueSheets, countRipLogs, getResultFacts } from '@/search/result-filters.ts';
+import { DownloadButton, ResultDownloadBadge } from '@/components/downloads/download-button.tsx';
 import { Availability } from './availability.tsx';
 import { FormatBadge } from './format-badge.tsx';
+
+/** Every file of the album is downloaded with it: audio, logs, cue sheets and cover art. */
+function getDownloadRequest(album: AlbumResult): DownloadRequest {
+  return {
+    username: album.username,
+    files: album.tracks.map(({ path, size }) => ({ path, size })),
+  };
+}
 
 export interface AlbumCardProps {
   album: AlbumResult;
@@ -67,6 +77,7 @@ function RipFileBadge({ label, description, count }: RipFileBadgeProps) {
 export function AlbumCard({ album }: AlbumCardProps) {
   const title = album.year === undefined ? album.album : `${album.album} (${album.year})`;
   const trackLabel = album.trackCount === 1 ? '1 track' : `${album.trackCount} tracks`;
+  const downloadRequest = getDownloadRequest(album);
 
   return (
     <Card>
@@ -76,6 +87,7 @@ export function AlbumCard({ album }: AlbumCardProps) {
           <FormatBadge extension={album.dominantExtension} />
           <RipFileBadge label="log" description="rip log" count={countRipLogs(album)} />
           <RipFileBadge label="cue" description="cue sheet" count={countCueSheets(album)} />
+          <ResultDownloadBadge request={downloadRequest} />
         </CardTitle>
         <CardDescription>{album.artist ?? 'Unknown artist'}</CardDescription>
       </CardHeader>
@@ -105,7 +117,8 @@ export function AlbumCard({ album }: AlbumCardProps) {
         </dl>
         <Availability availability={album.availability} />
       </CardContent>
-      <CardFooter className="flex-col items-stretch">
+      <CardFooter className="flex-col items-stretch gap-2">
+        <DownloadButton request={downloadRequest} className="w-full sm:w-fit sm:self-end" />
         <Collapsible>
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="sm" className="group w-full justify-between">

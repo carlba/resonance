@@ -7,6 +7,7 @@ import { AlbumsModule } from './albums/albums.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { envSchema, type Env } from './config/env.schema.js';
+import { DownloadsModule } from './downloads/downloads.module.js';
 import { createLoggerParams } from './logging/logger-params.js';
 import { TracksModule } from './tracks/tracks.module.js';
 
@@ -30,6 +31,7 @@ import { TracksModule } from './tracks/tracks.module.js';
     ExceptionFilterModule,
     TracksModule,
     AlbumsModule,
+    DownloadsModule,
   ],
   controllers: [AppController],
   providers: [

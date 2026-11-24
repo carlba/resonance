@@ -2,7 +2,14 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { App } from '@/app.tsx';
-import { buildAlbum, buildTrack, getRequestUrl, stubFetchWithJson } from '@/test/fixtures.ts';
+import {
+  buildAlbum,
+  buildTrack,
+  getRequestUrl,
+  jsonResponse,
+  stubFetchWithJson,
+  stubFetchWithSearchStub,
+} from '@/test/fixtures.ts';
 
 function renderAt(url: string) {
   return render(
@@ -10,13 +17,6 @@ function renderAt(url: string) {
       <App />
     </MemoryRouter>
   );
-}
-
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
 }
 
 function getAlbumTitles(): (string | null)[] {
@@ -79,7 +79,7 @@ describe('SearchPage', () => {
         jsonResponse({ statusCode: 502, message: 'Internal server error' }, 502)
       )
       .mockResolvedValueOnce(jsonResponse([buildAlbum({ album: 'Moon Safari' })]));
-    vi.stubGlobal('fetch', fetchStub);
+    stubFetchWithSearchStub(fetchStub);
     renderAt('/?q=air');
 
     const alert = await screen.findByRole('alert');
@@ -152,7 +152,7 @@ describe('SearchPage', () => {
       .fn<typeof fetch>()
       .mockResolvedValueOnce(jsonResponse([buildAlbum({ album: 'Homework' })]))
       .mockResolvedValueOnce(jsonResponse([buildTrack({ filename: 'Da Funk.flac' })]));
-    vi.stubGlobal('fetch', fetchStub);
+    stubFetchWithSearchStub(fetchStub);
     renderAt('/?q=daft punk');
 
     expect(await screen.findByText('Homework (2001)')).toBeInTheDocument();
@@ -291,7 +291,7 @@ describe('SearchPage', () => {
         .fn<typeof fetch>()
         .mockResolvedValueOnce(jsonResponse([buildTrack()]))
         .mockResolvedValueOnce(jsonResponse([cdAlbum]));
-      vi.stubGlobal('fetch', fetchStub);
+      stubFetchWithSearchStub(fetchStub);
       renderAt('/?q=air&type=tracks&log=1&minTracks=2');
 
       await openAdvancedFilters();
