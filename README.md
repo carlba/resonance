@@ -26,6 +26,12 @@ Search for albums and single tracks across providers, starting with
   the dominant format and bitrate, the sharing user's availability and all of
   its files. Non-audio files count towards the size only.
 
+- Downloads through slskd: `POST /downloads` enqueues the files of an album or
+  a single track (`{ "username": "...", "files": [{ "path": "...", "size": 1 }] }`),
+  and `GET /downloads` lists every slskd download live, grouped by user and
+  folder with an overall state (`downloading`, `succeeded` or `failed`),
+  progress and speed. Nothing is stored locally.
+
 - React frontend in [apps/frontend](apps/frontend): search albums or tracks,
   see quality and availability, filter by format and sort by quality, speed or
   size. An "Advanced filters" panel narrows the results by quality preset
@@ -34,6 +40,14 @@ Search for albums and single tracks across providers, starting with
   of track counts. Album cards show "log" and "cue" badges. The search, filters
   and sort live in the URL, so a search can be shared and reloaded. Works on
   mobile, tablet and desktop.
+
+  Every album and track result has a "Download" button that enqueues its files
+  in slskd (for an album: every file in the folder, logs, cue sheets and cover
+  art included) and confirms with a toast. Result cards show a Downloading,
+  Downloaded or Failed badge while slskd has transfers for their files; the
+  button is disabled until a failed download can be retried. The `/downloads`
+  page lists all downloads with progress and an expandable file list. Statuses
+  refresh every `VITE_DOWNLOADS_POLL_INTERVAL_MS` (default 2000 ms).
 
 ## Installation
 

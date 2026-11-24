@@ -10,6 +10,9 @@ const API_PREFIX = /^\/api/;
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // The one .env lives in the repo root. Vite only exposes the variables prefixed with VITE_ to
+  // the browser, so the backend's secrets in it stay out of the bundle.
+  envDir: path.resolve(import.meta.dirname, '../..'),
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, './src') },
   },

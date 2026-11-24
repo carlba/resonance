@@ -28,3 +28,39 @@ GET {{baseUrl}}/albums
 
 ### Search albums with an empty query (400)
 GET {{baseUrl}}/albums?q=
+
+### Download an album folder, every file of it, from a user (201; 502 if slskd is unreachable or rejects files)
+POST {{baseUrl}}/downloads
+Content-Type: application/json
+
+{
+  "username": "alice",
+  "files": [
+    { "path": "Music\\Daft Punk - Discovery (2001)\\01 - One More Time.flac", "size": 38000000 },
+    { "path": "Music\\Daft Punk - Discovery (2001)\\cover.jpg", "size": 200000 }
+  ]
+}
+
+### Download a single track (201)
+POST {{baseUrl}}/downloads
+Content-Type: application/json
+
+{
+  "username": "alice",
+  "files": [{ "path": "Music\\Daft Punk - Discovery (2001)\\01 - One More Time.flac", "size": 38000000 }]
+}
+
+### Download without files (400)
+POST {{baseUrl}}/downloads
+Content-Type: application/json
+
+{ "username": "alice", "files": [] }
+
+### Download with an unknown property (400)
+POST {{baseUrl}}/downloads
+Content-Type: application/json
+
+{ "username": "alice", "files": [{ "path": "a.flac", "size": 1 }], "destination": "/tmp" }
+
+### List every download slskd knows about, grouped by user and folder (200; 502 if slskd is unreachable)
+GET {{baseUrl}}/downloads

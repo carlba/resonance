@@ -12,6 +12,11 @@ const DISC_FOLDER = /^(?:cd|dis[ck])[\s._-]*\d+(?:\b.*)?$/i;
 // every machine.
 const PATH_COLLATOR = new Intl.Collator('en', { numeric: true });
 
+/** Orders paths the way a file manager does, so `2 - Song` comes before `10 - Song`. */
+export function comparePaths(first: string, second: string): number {
+  return PATH_COLLATOR.compare(first, second);
+}
+
 /**
  * The files one user shares in one album directory. The quality and length come from the audio
  * files only, so cover art, cue sheets and logs are listed without skewing them.
@@ -46,7 +51,7 @@ export interface AlbumResult {
 }
 
 /** Splits a path into its directory and its last segment; the directory is `''` when there is none. */
-function splitLastSegment(path: string): { directory: string; name: string } {
+export function splitLastSegment(path: string): { directory: string; name: string } {
   const [directory, name] = path.split(LAST_PATH_SEPARATOR);
   return name === undefined ? { directory: '', name: path } : { directory, name };
 }
@@ -83,9 +88,7 @@ function sumDurations(tracks: readonly TrackResult[]): number | undefined {
 }
 
 function toAlbumResult(directory: string, unsortedFiles: readonly TrackResult[]): AlbumResult {
-  const files = unsortedFiles.toSorted((first, second) =>
-    PATH_COLLATOR.compare(first.path, second.path)
-  );
+  const files = unsortedFiles.toSorted((first, second) => comparePaths(first.path, second.path));
   const audioFiles = files.filter(isAudioFile);
   // Every file of a group comes from the same user, so they share one availability.
   const [{ username, availability }] = files;
