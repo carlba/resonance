@@ -28,8 +28,12 @@ Search for albums and single tracks across providers, starting with
 
 - React frontend in [apps/frontend](apps/frontend): search albums or tracks,
   see quality and availability, filter by format and sort by quality, speed or
-  size. The search, filter and sort live in the URL, so a search can be shared
-  and reloaded. Works on mobile, tablet and desktop.
+  size. An "Advanced filters" panel narrows the results by quality preset
+  (≥ 256 kbps, ≥ 320 kbps, CD, Lossless or Hi-Res; albums are judged by their
+  dominant quality) and, for albums, to rips with a `.log` file and to a range
+  of track counts. Album cards show "log" and "cue" badges. The search, filters
+  and sort live in the URL, so a search can be shared and reloaded. Works on
+  mobile, tablet and desktop.
 
 ## Installation
 
