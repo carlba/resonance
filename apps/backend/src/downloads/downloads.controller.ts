@@ -1,7 +1,13 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { decodeDirectory, DeleteDownloadParamsDto } from './delete-download.dto.js';
 import type { DownloadGroup } from './download-grouping.js';
 import { StartDownloadDto } from './start-download.dto.js';
-import { DownloadsService, type StartedDownload } from './downloads.service.js';
+import {
+  DownloadsService,
+  type DeletedDownload,
+  type DownloadCapabilities,
+  type StartedDownload,
+} from './downloads.service.js';
 
 @Controller('downloads')
 export class DownloadsController {
@@ -15,5 +21,15 @@ export class DownloadsController {
   @Get()
   list(): Promise<DownloadGroup[]> {
     return this.downloadsService.list();
+  }
+
+  @Get('capabilities')
+  getCapabilities(): Promise<DownloadCapabilities> {
+    return this.downloadsService.getCapabilities();
+  }
+
+  @Delete(':username/:directory')
+  delete(@Param() { username, directory }: DeleteDownloadParamsDto): Promise<DeletedDownload> {
+    return this.downloadsService.delete(username, decodeDirectory(directory));
   }
 }

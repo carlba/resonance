@@ -1,5 +1,11 @@
 import { buildDownloadGroup, getRequestUrl, jsonResponse } from '@/test/fixtures.ts';
-import { fetchDownloads, startDownload } from './download-api.ts';
+import {
+  deleteDownload,
+  encodeDirectory,
+  fetchDownloadCapabilities,
+  fetchDownloads,
+  startDownload,
+} from './download-api.ts';
 import { DownloadApiError } from './download-api-error.ts';
 
 /** Answers every request, the downloads ones included, with the same JSON body. */
@@ -92,5 +98,70 @@ describe('fetchDownloads', () => {
     );
 
     await expect(fetchDownloads()).rejects.toMatchObject({ kind: 'invalid-response' });
+  });
+});
+
+describe('encodeDirectory', () => {
+  it('encodes the folder as base64url without padding', () => {
+    expect(encodeDirectory('Music\\A?>?')).toBe('TXVzaWNcQT8-Pw');
+  });
+
+  it.each(['Music\\Album', 'Björk – Homogenic', 'a?>?>~~~\\ü/日本語', 'x'])(
+    'gives what the backend decodes back into %s',
+    directory => {
+      const encoded = encodeDirectory(directory);
+      const base64 = encoded.replaceAll('-', '+').replaceAll('_', '/');
+      const bytes = Uint8Array.from(atob(base64), character => character.codePointAt(0) ?? 0);
+
+      expect(encoded).toMatch(/^[A-Za-z0-9_-]+$/);
+      expect(new TextDecoder().decode(bytes)).toBe(directory);
+    }
+  );
+});
+
+describe('fetchDownloadCapabilities', () => {
+  it('reads /api/downloads/capabilities', async () => {
+    const capabilities = {
+      canDelete: false,
+      unavailableReason: 'file-management-disabled',
+      destinationPattern: '${SOURCE_DIRECTORY}',
+    };
+    const fetchStub = stubFetch(capabilities);
+
+    await expect(fetchDownloadCapabilities()).resolves.toEqual(capabilities);
+    expect(getRequestUrl(fetchStub).pathname).toBe('/api/downloads/capabilities');
+  });
+
+  it('fails with an invalid-response error when the answer has the wrong shape', async () => {
+    stubFetch({ canDelete: 'yes' });
+
+    expect(await catchError(fetchDownloadCapabilities())).toMatchObject({
+      kind: 'invalid-response',
+    });
+  });
+});
+
+describe('deleteDownload', () => {
+  it('sends DELETE with the user and the encoded folder and returns the counts', async () => {
+    const deleted = { deletedFiles: 2, missingFiles: 1, removedTransfers: 3 };
+    const fetchStub = stubFetch(deleted);
+
+    await expect(deleteDownload('al ice', 'Music\\Album')).resolves.toEqual(deleted);
+
+    const [input] = fetchStub.mock.calls[0];
+    expect((input as Request).method).toBe('DELETE');
+    expect(getRequestUrl(fetchStub).pathname).toBe(
+      `/api/downloads/al%20ice/${encodeDirectory('Music\\Album')}`
+    );
+  });
+
+  it('reports the backend message of a refused delete', async () => {
+    stubFetch({ statusCode: 409, message: 'Deleting downloads is not available' }, 409);
+
+    expect(await catchError(deleteDownload('alice', 'Music\\Album'))).toMatchObject({
+      kind: 'http',
+      statusCode: 409,
+      message: 'Deleting downloads is not available',
+    });
   });
 });

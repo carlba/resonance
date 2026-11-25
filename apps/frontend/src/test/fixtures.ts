@@ -1,4 +1,4 @@
-import type { DownloadFile, DownloadGroup } from '@/api/download-schemas.ts';
+import type { DownloadCapabilities, DownloadFile, DownloadGroup } from '@/api/download-schemas.ts';
 import type { AlbumResult, TrackResult, UserAvailability } from '@/api/search-schemas.ts';
 
 export function buildAvailability(overrides: Partial<UserAvailability> = {}): UserAvailability {
@@ -117,4 +117,55 @@ export function getCardOf(element: HTMLElement): HTMLElement {
     throw new Error(`Expected the element to be inside a card: text=${element.textContent}`);
   }
   return card;
+}
+
+export function buildCapabilities(
+  overrides: Partial<DownloadCapabilities> = {}
+): DownloadCapabilities {
+  return { canDelete: true, destinationPattern: '${SOURCE_DIRECTORY}', ...overrides };
+}
+
+export interface DownloadsBackendOptions {
+  /** The answer to `GET /downloads`; a function is called for every read. */
+  groups?: DownloadGroup[] | (() => DownloadGroup[]);
+  /** The answer to `GET /downloads/capabilities`. */
+  capabilities?: () => Response;
+  /** The answer to `DELETE /downloads/:username/:directory`. */
+  deleteResponse?: (request: Request) => Response | Promise<Response>;
+}
+
+/**
+ * Installs a backend that answers the three download endpoints. Returns the stub, and the helpers
+ * to count the reads of the list apart from the capabilities request and the deletes.
+ */
+export function stubDownloadsBackend({
+  groups = [],
+  capabilities = () => jsonResponse(buildCapabilities()),
+  deleteResponse = () => jsonResponse({ deletedFiles: 0, missingFiles: 0, removedTransfers: 0 }),
+}: DownloadsBackendOptions = {}) {
+  const fetchStub = vi.fn<typeof fetch>(async (input, init) => {
+    const request = input instanceof Request ? input : new Request(getUrl(input), init);
+    const { pathname } = getUrl(request.url);
+    if (request.method === 'DELETE') {
+      return deleteResponse(request);
+    }
+    if (pathname === `${DOWNLOADS_PATH}/capabilities`) {
+      return capabilities();
+    }
+    return jsonResponse(typeof groups === 'function' ? groups() : groups);
+  });
+  vi.stubGlobal('fetch', fetchStub);
+
+  const getRequests = (): Request[] =>
+    fetchStub.mock.calls.flatMap(([input]) => (input instanceof Request ? [input] : []));
+  return {
+    fetchStub,
+    /** How many times the list of downloads was read. */
+    countListReads: () =>
+      getRequests().filter(
+        request => request.method === 'GET' && getUrl(request.url).pathname === DOWNLOADS_PATH
+      ).length,
+    /** The `DELETE` requests, in order. */
+    getDeleteRequests: () => getRequests().filter(request => request.method === 'DELETE'),
+  };
 }

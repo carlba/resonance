@@ -55,6 +55,7 @@ describe('toProviderDownloadFiles', () => {
               endedAt: null,
             },
             {
+              id: 'b',
               filename: 'Music\\Album\\02.flac',
               size: 2000,
               state: 'Completed, Succeeded',
@@ -68,7 +69,7 @@ describe('toProviderDownloadFiles', () => {
     },
     {
       username: 'bob',
-      directories: [{ files: [{ filename: 'x.mp3', size: 5, state: 'Queued' }] }],
+      directories: [{ files: [{ id: 'c', filename: 'x.mp3', size: 5, state: 'Queued' }] }],
     },
   ]);
 
@@ -78,6 +79,10 @@ describe('toProviderDownloadFiles', () => {
       ['alice', 'Music\\Album\\02.flac'],
       ['bob', 'x.mp3'],
     ]);
+  });
+
+  it('keeps the id of each transfer, which slskd needs to cancel or remove it', () => {
+    expect(toProviderDownloadFiles(transfers).map(file => file.id)).toEqual(['a', 'b', 'c']);
   });
 
   it('keeps the speed only while a file is being transferred', () => {

@@ -6,6 +6,7 @@ import type { DownloadState, ProviderDownloadFile } from '../download-provider.j
 // mistyped fields do.
 
 const slskdTransferSchema = z.object({
+  id: z.string().min(1),
   // The full remote path, the same one the search returned.
   filename: z.string(),
   size: z.number(),
@@ -79,6 +80,7 @@ function getLastActivityAt(transfer: SlskdTransfer): string | undefined {
 function toProviderDownloadFile(username: string, transfer: SlskdTransfer): ProviderDownloadFile {
   const state = toDownloadState(transfer.state);
   return {
+    id: transfer.id,
     username,
     path: transfer.filename,
     size: transfer.size,
@@ -98,3 +100,22 @@ export function toProviderDownloadFiles(
     directories.flatMap(({ files }) => files.map(file => toProviderDownloadFile(username, file)))
   );
 }
+
+/** `GET /api/v0/options`: the settings of slskd, with its secrets redacted. */
+export const slskdOptionsSchema = z.object({
+  remoteFileManagement: z.boolean(),
+  transfers: z.object({
+    download: z.object({
+      destination: z.object({
+        subdirectory: z.string(),
+      }),
+    }),
+  }),
+});
+
+/** `GET /api/v0/files/{downloads|incomplete}/directories/{path}`. */
+export const slskdDirectorySchema = z.object({
+  // slskd serializes a folder without any file or sub-folder as empty lists, but be lenient.
+  files: z.array(z.unknown()).nullish(),
+  directories: z.array(z.unknown()).nullish(),
+});

@@ -1,8 +1,12 @@
 import ky, { isHTTPError, isNetworkError, isTimeoutError, SchemaValidationError } from 'ky';
 import { DownloadApiError } from './download-api-error.ts';
 import {
+  deletedDownloadSchema,
+  downloadCapabilitiesSchema,
   downloadGroupsSchema,
   startedDownloadSchema,
+  type DeletedDownload,
+  type DownloadCapabilities,
   type DownloadGroup,
   type DownloadRequest,
   type StartedDownload,
@@ -22,7 +26,11 @@ const downloadClient = ky.create({
   retry: 0,
 });
 
+// Deleting goes through the files one by one, so a big album takes longer than the other calls.
+const DELETE_TIMEOUT_MS = 120_000;
+
 const DOWNLOADS_PATH = 'downloads';
+const CAPABILITIES_PATH = `${DOWNLOADS_PATH}/capabilities`;
 const SERVER_ERROR_STATUS = 500;
 
 export interface DownloadsRequestOptions {
@@ -97,5 +105,50 @@ export async function fetchDownloads(
       .json(downloadGroupsSchema);
   } catch (error) {
     throw toDownloadApiError(error, DOWNLOADS_PATH);
+  }
+}
+
+/**
+ * The URL-safe base64 of a folder path, without padding, which is how the backend expects the
+ * `directory` of `DELETE /downloads/:username/:directory`. Paths hold separators and non-ASCII
+ * characters, so the UTF-8 bytes are encoded rather than the string.
+ */
+export function encodeDirectory(directory: string): string {
+  const bytes = new TextEncoder().encode(directory);
+  const binary = Array.from(bytes, byte => String.fromCharCode(byte)).join('');
+  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+}
+
+/**
+ * Asks whether downloads can be deleted with slskd's current settings: `GET
+ * /downloads/capabilities`. Throws a {@link DownloadApiError}.
+ */
+export async function fetchDownloadCapabilities(
+  options: DownloadsRequestOptions = {}
+): Promise<DownloadCapabilities> {
+  try {
+    return await downloadClient
+      .get(CAPABILITIES_PATH, { signal: options.signal })
+      .json(downloadCapabilitiesSchema);
+  } catch (error) {
+    throw toDownloadApiError(error, CAPABILITIES_PATH);
+  }
+}
+
+/**
+ * Cancels a group of downloads, deletes its files from disk for good and removes it from slskd:
+ * `DELETE /downloads/:username/:directory`. Throws a {@link DownloadApiError}.
+ */
+export async function deleteDownload(
+  username: string,
+  directory: string
+): Promise<DeletedDownload> {
+  const path = `${DOWNLOADS_PATH}/${encodeURIComponent(username)}/${encodeDirectory(directory)}`;
+  try {
+    return await downloadClient
+      .delete(path, { timeout: DELETE_TIMEOUT_MS })
+      .json(deletedDownloadSchema);
+  } catch (error) {
+    throw toDownloadApiError(error, path);
   }
 }
