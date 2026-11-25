@@ -3,6 +3,10 @@ import { Link } from 'react-router';
 import { AppHeader } from '@/components/app-header.tsx';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert.tsx';
 import { Skeleton } from '@/components/ui/skeleton.tsx';
+import { TooltipProvider } from '@/components/ui/tooltip.tsx';
+import { getDeleteBlockedReason } from '@/downloads/delete-availability.ts';
+import { useDeleteDownload, getGroupKey } from '@/downloads/use-delete-download.ts';
+import { useDownloadCapabilities } from '@/downloads/use-download-capabilities.ts';
 import { useDownloads } from '@/downloads/use-downloads.ts';
 import { DownloadGroupCard } from './download-group-card.tsx';
 
@@ -43,7 +47,10 @@ function ErrorState({ error }: { error: Error }) {
 
 /** Every slskd download, refreshed by polling for as long as the page is open. */
 export function DownloadsPage() {
-  const { groups, error, isLoading } = useDownloads();
+  const { groups, error, isLoading, refresh } = useDownloads();
+  const capabilities = useDownloadCapabilities();
+  const { deletingKeys, deleteGroup } = useDeleteDownload(refresh);
+  const deleteBlockedReason = getDeleteBlockedReason(capabilities);
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 lg:py-10">
@@ -52,13 +59,20 @@ export function DownloadsPage() {
       {isLoading && <LoadingState />}
       {groups?.length === 0 && error === undefined && <EmptyState />}
       {groups !== undefined && groups.length > 0 && (
-        <ul className="flex flex-col gap-3">
-          {groups.map(group => (
-            <li key={`${group.username}\n${group.directory}`}>
-              <DownloadGroupCard group={group} />
-            </li>
-          ))}
-        </ul>
+        <TooltipProvider>
+          <ul className="flex flex-col gap-3">
+            {groups.map(group => (
+              <li key={getGroupKey(group)}>
+                <DownloadGroupCard
+                  group={group}
+                  deleteBlockedReason={deleteBlockedReason}
+                  isDeleting={deletingKeys.has(getGroupKey(group))}
+                  onDelete={deleteGroup}
+                />
+              </li>
+            ))}
+          </ul>
+        </TooltipProvider>
       )}
     </main>
   );

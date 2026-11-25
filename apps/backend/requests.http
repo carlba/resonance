@@ -64,3 +64,20 @@ Content-Type: application/json
 
 ### List every download slskd knows about, grouped by user and folder (200; 502 if slskd is unreachable)
 GET {{baseUrl}}/downloads
+
+### Whether deleting downloads is possible (200; canDelete is false with unavailableReason when remote file management is off or the destination pattern is not supported)
+GET {{baseUrl}}/downloads/capabilities
+
+### Delete a download group: user "alice", folder "Music\Daft Punk - Discovery (2001)" base64url-encoded (200 with deletedFiles, missingFiles, removedTransfers)
+# The folder is the `directory` of the group from GET /downloads. In a shell:
+#   printf '%s' 'Music\Daft Punk - Discovery (2001)' | base64 | tr '+/' '-_' | tr -d '='
+DELETE {{baseUrl}}/downloads/alice/TXVzaWNcRGFmdCBQdW5rIC0gRGlzY292ZXJ5ICgyMDAxKQ
+
+### Delete a download group that doesn't exist (404)
+DELETE {{baseUrl}}/downloads/nobody/TXVzaWNcTm9wZQ
+
+### Delete when remote file management is off or the destination pattern is not supported (409)
+DELETE {{baseUrl}}/downloads/alice/TXVzaWNcRGFmdCBQdW5rIC0gRGlzY292ZXJ5ICgyMDAxKQ
+
+### Delete with a directory that is not base64url (400)
+DELETE {{baseUrl}}/downloads/alice/Music\Album
