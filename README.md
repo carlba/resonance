@@ -32,6 +32,16 @@ Search for albums and single tracks across providers, starting with
   folder with an overall state (`downloading`, `succeeded` or `failed`),
   progress and speed. Nothing is stored locally.
 
+- Deleting downloads: `DELETE /downloads/:username/:directory` (the folder is
+  the group's `directory`, base64url-encoded) cancels what is still running,
+  deletes the group's files from slskd's downloads and incomplete folders,
+  removes the folders that leaves empty and then removes the transfers from
+  slskd. It answers `{ "deletedFiles": 1, "missingFiles": 0, "removedTransfers": 1 }`;
+  a file that was already gone counts as missing. If anything fails before the
+  last step the transfers stay listed, so the delete can be retried.
+  `GET /downloads/capabilities` tells whether deleting is possible. See
+  [Deleting downloads](#deleting-downloads) for what slskd needs.
+
 - React frontend in [apps/frontend](apps/frontend): search albums or tracks,
   see quality and availability, filter by format and sort by quality, speed or
   size. An "Advanced filters" panel narrows the results by quality preset
@@ -47,7 +57,10 @@ Search for albums and single tracks across providers, starting with
   Downloaded or Failed badge while slskd has transfers for their files; the
   button is disabled until a failed download can be retried. The `/downloads`
   page lists all downloads with progress and an expandable file list. Statuses
-  refresh every `VITE_DOWNLOADS_POLL_INTERVAL_MS` (default 2000 ms).
+  refresh every `VITE_DOWNLOADS_POLL_INTERVAL_MS` (default 2000 ms). Each
+  download on that page has a "Delete" button that, after a confirmation,
+  deletes its files from disk for good and reports how many files were deleted
+  and how many were already gone.
 
 ## Installation
 
@@ -62,6 +75,39 @@ pnpm run build
 The backend needs a running [slskd](https://github.com/slskd/slskd) instance
 with an API key (`web.authentication.api_keys` in its config).
 `SEARCH_TIMEOUT_MS` caps how long a search request waits for slskd.
+
+### Deleting downloads
+
+Deleting removes files from slskd's disk, so slskd must allow it and resonance
+must be able to work out where slskd saved each file:
+
+- Turn on remote file management in slskd, with `SLSKD_REMOTE_FILE_MANAGEMENT=true`
+  or `remote_file_management: true` in its config. It is off by default; while
+  it is off, the "Delete" buttons are disabled with a tooltip saying so. The
+  backend reads the setting from slskd's options, the frontend never calls
+  slskd.
+
+- The API key resonance uses needs the `administrator` role
+  (`web.authentication.api_keys.<name>.role` in slskd's config): slskd up to
+  0.26 only lets administrators read its options, where the backend finds out
+  whether file management is on and which destination pattern is set. Without
+  it, the buttons stay disabled with a tooltip saying so.
+
+- slskd's `transfers.download.destination.subdirectory` pattern decides the
+  local folder. `${SOURCE_USERNAME}`, `${SOURCE_PATH}`, `${SOURCE_DIRECTORY}`
+  (the default) and `{}` are supported. A pattern with `${BATCH_ID}`,
+  `${BATCH_EXTERNAL_ID}`, `${SEARCH_ID}` or `${SEARCH_TEXT}` disables deleting,
+  since slskd doesn't report those with a transfer. The tooltip names the
+  pattern.
+
+- The backend and slskd must agree on the names: resonance mirrors slskd's file
+  name sanitizing using the Windows set of invalid characters. On Linux slskd
+  only replaces `/` and `\0`, so a file with `:`, `?` or `*` in its name is
+  saved under its own name, isn't found and is reported as missing. It stays on
+  disk.
+
+- slskd's "rename if the file exists" strategy is not followed: a file saved
+  as `01.flac` while another existed is not found.
 
 ## Usage
 

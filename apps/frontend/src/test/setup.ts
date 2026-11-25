@@ -8,6 +8,13 @@ Element.prototype.hasPointerCapture = () => false;
 Element.prototype.releasePointerCapture = () => {};
 Element.prototype.scrollIntoView = () => {};
 
+// Radix Tooltip measures its arrow with a ResizeObserver, which jsdom doesn't implement.
+globalThis.ResizeObserver = class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+
 // sonner's Toaster reads the color scheme through matchMedia, which jsdom doesn't implement.
 window.matchMedia = query => ({
   matches: false,
