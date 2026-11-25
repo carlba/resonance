@@ -81,6 +81,30 @@ export function toApiError(error: unknown, description: string): unknown {
   return error;
 }
 
+/** Whether `error` is a failed slskd call that slskd answered with the given status. */
+export function hasSlskdStatus(error: unknown, status: number): boolean {
+  return (
+    error instanceof ApiError &&
+    error.cause instanceof HttpResponseError &&
+    error.cause.status === status
+  );
+}
+
+/**
+ * Sends one call to slskd for its side effect, without reading a body. A failed request throws an
+ * `ApiError` that names the call.
+ */
+export async function sendSlskd(
+  description: string,
+  send: () => Promise<HttpResponse>
+): Promise<HttpResponse> {
+  try {
+    return await send();
+  } catch (error) {
+    throw toApiError(error, description);
+  }
+}
+
 /**
  * Sends one call to slskd and checks its body against `schema`. A failed request and a body that
  * doesn't match both throw an `ApiError` that names the call.
@@ -90,11 +114,6 @@ export async function requestSlskd<T extends z.ZodType>(
   schema: T,
   send: () => Promise<HttpResponse>
 ): Promise<z.infer<T>> {
-  let response: HttpResponse;
-  try {
-    response = await send();
-  } catch (error) {
-    throw toApiError(error, description);
-  }
+  const response = await sendSlskd(description, send);
   return parseResponse(schema, response.data, description);
 }

@@ -3,6 +3,7 @@ import { getOverallState, groupDownloads } from './download-grouping.js';
 
 function buildFile(overrides: Partial<ProviderDownloadFile> = {}): ProviderDownloadFile {
   return {
+    id: 'transfer-1',
     username: 'alice',
     path: 'Music\\Artist\\Album\\01 - Song.flac',
     size: 1000,

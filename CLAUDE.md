@@ -31,7 +31,9 @@ Four workspace packages exist today, wired together via pnpm's `workspace:*` pro
   `SearchProvider` abstraction with its slskd implementation (`src/providers/`), track search
   (`GET /tracks`, `src/tracks/`) and album search (`GET /albums`, `src/albums/`), which groups the
   tracks of the same search by user and folder, and downloads (`POST /downloads`,
-  `GET /downloads`, `src/downloads/`) through the `DownloadProvider` abstraction.
+  `GET /downloads`, `src/downloads/`) through the `DownloadProvider` abstraction, plus deleting a
+  download group and its files (`DELETE /downloads/:username/:directory`,
+  `GET /downloads/capabilities`), where `local-paths.ts` derives slskd's local file paths.
   Depends on `core` and `nest-modules`. See `.claude/rules/backend-nest.md`.
 
 - `packages/core` (`@carlba/core`) — shared library holding `ApiError`. No internal deps (leaf).
@@ -46,7 +48,7 @@ Four workspace packages exist today, wired together via pnpm's `workspace:*` pro
   keeps the search, format filter and sort order in the URL (`src/search/`), and shows the results
   with loading, empty and error states (`src/components/search/`). Result cards start downloads and
   show their status, and a `/downloads` page lists every download (`src/downloads/`,
-  `src/components/downloads/`), polling every `VITE_DOWNLOADS_POLL_INTERVAL_MS`. In development, Vite proxies
+  `src/components/downloads/`), polling every `VITE_DOWNLOADS_POLL_INTERVAL_MS`, and a confirmed "Delete" button per group. In development, Vite proxies
   `/api/*` to the backend at `http://localhost:3000`. No internal deps — it mirrors the backend's
   response types with zod schemas instead of importing them.
 

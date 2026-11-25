@@ -7,6 +7,9 @@ import { AppModule } from '../src/app.module.js';
 import { DOWNLOAD_PROVIDER, type DownloadProvider } from '../src/providers/download-provider.js';
 import { SEARCH_PROVIDER, type SearchProvider } from '../src/providers/search-provider.js';
 
+/** The `directory` path segment of a delete request: the folder, base64url-encoded. */
+const encode = (directory: string): string => Buffer.from(directory).toString('base64url');
+
 const AVAILABILITY = { hasFreeUploadSlot: true, queueLength: 0, uploadSpeed: 1_000_000 };
 
 describe('AppModule (e2e)', () => {
@@ -15,12 +18,30 @@ describe('AppModule (e2e)', () => {
   const downloadProvider = {
     enqueue: vi.fn<DownloadProvider['enqueue']>(),
     list: vi.fn<DownloadProvider['list']>(),
+    getStorageOptions: vi.fn<DownloadProvider['getStorageOptions']>(),
+    cancelTransfer: vi.fn<DownloadProvider['cancelTransfer']>(),
+    removeTransfer: vi.fn<DownloadProvider['removeTransfer']>(),
+    deleteFile: vi.fn<DownloadProvider['deleteFile']>(),
+    listDirectory: vi.fn<DownloadProvider['listDirectory']>(),
+    deleteDirectory: vi.fn<DownloadProvider['deleteDirectory']>(),
   };
 
   beforeEach(async () => {
     searchProvider.search.mockReset();
     downloadProvider.enqueue.mockReset().mockResolvedValue();
     downloadProvider.list.mockReset().mockResolvedValue([]);
+    downloadProvider.getStorageOptions.mockReset().mockResolvedValue({
+      isFileManagementEnabled: true,
+      destinationPattern: '${SOURCE_DIRECTORY}',
+    });
+    downloadProvider.cancelTransfer.mockReset().mockResolvedValue();
+    downloadProvider.removeTransfer.mockReset().mockResolvedValue();
+    downloadProvider.deleteFile.mockReset().mockResolvedValue('deleted');
+    downloadProvider.listDirectory.mockReset().mockResolvedValue({
+      fileCount: 0,
+      directoryCount: 0,
+    });
+    downloadProvider.deleteDirectory.mockReset().mockResolvedValue();
 
     // slskd isn't reachable in tests, so the provider is replaced; the env vars it would read are
     // set in vitest.config.e2e.ts.
@@ -282,6 +303,7 @@ describe('AppModule (e2e)', () => {
     it('returns the provider downloads grouped by user and folder', async () => {
       downloadProvider.list.mockResolvedValue([
         {
+          id: 'transfer-1',
           username: 'alice',
           path: 'Music\\Album\\01 - Song.flac',
           size: 1000,
@@ -328,6 +350,132 @@ describe('AppModule (e2e)', () => {
       );
 
       await request(app.getHttpServer()).get('/downloads').expect(502);
+    });
+  });
+
+  describe('GET /downloads/capabilities', () => {
+    it('says deleting is possible with remote file management on and a supported pattern', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/downloads/capabilities')
+        .expect(200);
+
+      expect(response.body).toEqual({ canDelete: true, destinationPattern: '${SOURCE_DIRECTORY}' });
+    });
+
+    it('says why deleting is not possible with remote file management off', async () => {
+      downloadProvider.getStorageOptions.mockResolvedValue({
+        isFileManagementEnabled: false,
+        destinationPattern: '${SOURCE_DIRECTORY}',
+      });
+
+      const response = await request(app.getHttpServer())
+        .get('/downloads/capabilities')
+        .expect(200);
+
+      expect(response.body).toMatchObject({
+        canDelete: false,
+        unavailableReason: 'file-management-disabled',
+      });
+    });
+
+    it('answers with the status of a provider ApiError', async () => {
+      downloadProvider.getStorageOptions.mockRejectedValue(
+        new ApiError('slskd is unreachable: operation=options', { statusCode: 502 })
+      );
+
+      await request(app.getHttpServer()).get('/downloads/capabilities').expect(502);
+    });
+  });
+
+  describe('DELETE /downloads/:username/:directory', () => {
+    it('deletes the files of the group and reports what it did', async () => {
+      downloadProvider.list.mockResolvedValue([
+        {
+          id: 'transfer-1',
+          username: 'alice',
+          path: 'Music\\Album\\01 - Song.flac',
+          size: 1000,
+          state: 'succeeded',
+          bytesTransferred: 1000,
+          averageSpeed: 0,
+        },
+      ]);
+
+      const response = await request(app.getHttpServer())
+        .delete(`/downloads/alice/${encode('Music\\Album')}`)
+        .expect(200);
+
+      expect(response.body).toEqual({ deletedFiles: 1, missingFiles: 0, removedTransfers: 1 });
+      expect(downloadProvider.deleteFile).toHaveBeenCalledWith('downloads', 'Album/01 - Song.flac');
+      expect(downloadProvider.removeTransfer).toHaveBeenCalledWith(
+        expect.objectContaining({ username: 'alice', id: 'transfer-1' })
+      );
+    });
+
+    it('decodes a folder with characters that are not ASCII', async () => {
+      downloadProvider.list.mockResolvedValue([
+        {
+          id: 'transfer-1',
+          username: 'alice',
+          path: 'Musik\\Björk – Homogenic\\01.flac',
+          size: 1,
+          state: 'succeeded',
+          bytesTransferred: 1,
+          averageSpeed: 0,
+        },
+      ]);
+
+      await request(app.getHttpServer())
+        .delete(`/downloads/alice/${encode('Musik\\Björk – Homogenic')}`)
+        .expect(200);
+    });
+
+    it('answers 400 for a directory that is not base64url', async () => {
+      await request(app.getHttpServer()).delete('/downloads/alice/Music%5CAlbum').expect(400);
+
+      expect(downloadProvider.list).not.toHaveBeenCalled();
+    });
+
+    it('answers 404 when no download matches', async () => {
+      await request(app.getHttpServer())
+        .delete(`/downloads/alice/${encode('Music\\Album')}`)
+        .expect(404);
+    });
+
+    it('answers 409 when remote file management is off', async () => {
+      downloadProvider.getStorageOptions.mockResolvedValue({
+        isFileManagementEnabled: false,
+        destinationPattern: '${SOURCE_DIRECTORY}',
+      });
+
+      await request(app.getHttpServer())
+        .delete(`/downloads/alice/${encode('Music\\Album')}`)
+        .expect(409);
+
+      expect(downloadProvider.deleteFile).not.toHaveBeenCalled();
+    });
+
+    it('answers with the status of the failure and keeps the transfers when a file fails', async () => {
+      downloadProvider.list.mockResolvedValue([
+        {
+          id: 'transfer-1',
+          username: 'alice',
+          path: 'Music\\Album\\01.flac',
+          size: 1,
+          state: 'succeeded',
+          bytesTransferred: 1,
+          averageSpeed: 0,
+        },
+      ]);
+      downloadProvider.deleteFile.mockRejectedValue(
+        new ApiError('slskd denied the request', { statusCode: 502 })
+      );
+
+      await request(app.getHttpServer())
+        .delete(`/downloads/alice/${encode('Music\\Album')}`)
+        .expect(502);
+
+      expect(downloadProvider.removeTransfer).not.toHaveBeenCalled();
     });
   });
 });
